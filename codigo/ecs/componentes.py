@@ -4,6 +4,7 @@ from typing import Optional
 
 # Estados de la rutina del PNJ
 ESTADO_INACTIVO = "inactivo"
+ESTADO_MOVIENDOSE = "moviendose"
 ESTADO_YENDO_AL_RECURSO = "yendo_al_recurso"
 ESTADO_RECOLECTANDO = "recolectando"
 ESTADO_YENDO_A_CASA = "yendo_a_casa"
@@ -46,6 +47,7 @@ class ComponenteRutinaTrabajador:
     estado: str = ESTADO_INACTIVO
     objetivo: Optional[int] = None     # id del recurso asignado
     casa: Optional[int] = None         # id de la Casa de Campaña (activa el ciclo)
+    destino: Optional[tuple] = None    # (x, y) libre en el mapa al hacer clic
     carga: int = 0                     # unidades que lleva encima
     tipo_carga: Optional[str] = None   # "agua" o "comida"
     temporizador: float = 0.0          # avance de la extracción

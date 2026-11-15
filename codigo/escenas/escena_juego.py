@@ -95,3 +95,11 @@ class EscenaJuego:
 
         self.sistema_renderizado.dibujar(self.mundo, self.pantalla)
         self._dibujar_panel()
+
+    def _dibujar_panel(self):
+        for _, (almacen,) in self.mundo.entidades_con(ComponenteAlmacen):
+            x = cfg.ANCHO_MAPA + 16
+            agua = self.fuente.render(f"Agua: {almacen.agua}", True, (255, 255, 255))
+            comida = self.fuente.render(f"Comida: {almacen.comida}", True, (255, 255, 255))
+            self.pantalla.blit(agua, (x, 24))
+            self.pantalla.blit(comida, (x, 56))

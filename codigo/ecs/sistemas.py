@@ -6,6 +6,7 @@ import pygame
 from codigo import configuracion as cfg
 from codigo.ecs.componentes import (
     ESTADO_INACTIVO,
+    ESTADO_MOVIENDOSE,
     ESTADO_RECOLECTANDO,
     ESTADO_YENDO_A_CASA,
     ESTADO_YENDO_AL_RECURSO,
@@ -19,9 +20,12 @@ from codigo.ecs.componentes import (
 
 
 class SistemaEntradaYSeleccion:
-    """Clic en un PNJ lo selecciona; clic en un recurso o en la Casa le da órdenes."""
+    """Clic en un PNJ lo selecciona; clic en el mapa, recurso o Casa le da órdenes."""
 
     def manejar_evento(self, mundo, evento):
+        if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 3:
+            self._deseleccionar_todos(mundo)
+            return
         if evento.type != pygame.MOUSEBUTTONDOWN or evento.button != 1:
             return
         if evento.pos[0] >= cfg.ANCHO_MAPA:
@@ -30,18 +34,22 @@ class SistemaEntradaYSeleccion:
         id_clic = self._entidad_en(mundo, evento.pos)
         id_pnj = self._pnj_seleccionado(mundo)
 
-        if id_clic is None:
-            self._deseleccionar_todos(mundo)
-            return
-
-        if mundo.obtener(id_clic, ComponenteRutinaTrabajador) is not None:
-            self._deseleccionar_todos(mundo)
-            mundo.obtener(id_clic, ComponenteSeleccionable).seleccionado = True
+        if id_clic is not None and mundo.obtener(id_clic, ComponenteRutinaTrabajador) is not None:
+            if id_clic == id_pnj:
+                self._deseleccionar_todos(mundo)
+            else:
+                self._deseleccionar_todos(mundo)
+                mundo.obtener(id_clic, ComponenteSeleccionable).seleccionado = True
             return
 
         if id_pnj is None:
             return
         rutina = mundo.obtener(id_pnj, ComponenteRutinaTrabajador)
+
+        if id_clic is None:
+            rutina.destino = evento.pos
+            rutina.estado = ESTADO_MOVIENDOSE
+            return
 
         nodo = mundo.obtener(id_clic, ComponenteNodoRecurso)
         if nodo is not None:
@@ -49,14 +57,18 @@ class SistemaEntradaYSeleccion:
                 rutina.carga = 0  # no mezcla agua con comida
                 rutina.tipo_carga = nodo.tipo
             rutina.objetivo = id_clic
+            rutina.destino = None
             rutina.estado = ESTADO_YENDO_AL_RECURSO
         elif mundo.obtener(id_clic, ComponenteAlmacen) is not None:
             rutina.casa = id_clic  # activa el ciclo automático
-            if rutina.estado == ESTADO_INACTIVO:
+            rutina.destino = None
+            if rutina.estado in (ESTADO_INACTIVO, ESTADO_MOVIENDOSE):
                 if rutina.carga > 0:
                     rutina.estado = ESTADO_YENDO_A_CASA
                 elif rutina.objetivo is not None:
                     rutina.estado = ESTADO_YENDO_AL_RECURSO
+                else:
+                    rutina.estado = ESTADO_YENDO_A_CASA
 
     def _entidad_en(self, mundo, punto):
         """Entidad bajo el clic (la dibujada encima gana)."""
@@ -89,12 +101,42 @@ class SistemaRutinaTrabajador:
             ComponenteRenderizado,
             ComponenteRutinaTrabajador,
         ):
-            if rutina.estado == ESTADO_YENDO_AL_RECURSO:
+            if rutina.estado == ESTADO_MOVIENDOSE:
+                self._mover_a_punto(pos, imagen, rutina, dt)
+            elif rutina.estado == ESTADO_YENDO_AL_RECURSO:
                 self._ir_al_recurso(mundo, pos, imagen, rutina, dt)
             elif rutina.estado == ESTADO_RECOLECTANDO:
                 self._recolectar(mundo, rutina, dt)
             elif rutina.estado == ESTADO_YENDO_A_CASA:
                 self._ir_a_casa(mundo, pos, imagen, rutina, dt)
+
+    def _mover_a_punto(self, pos, imagen, rutina, dt):
+        """Camina hacia cualquier coordenada libre (x, y) donde el usuario hizo clic."""
+        if rutina.destino is None:
+            rutina.estado = ESTADO_INACTIVO
+            return
+
+        dest_x, dest_y = rutina.destino
+        # Mantener dentro de los límites del mapa
+        mitad_ancho = imagen.ancho / 2
+        mitad_alto = imagen.alto / 2
+        dest_x = max(mitad_ancho, min(cfg.ANCHO_MAPA - mitad_ancho, dest_x))
+        dest_y = max(mitad_alto, min(cfg.ALTO_MAPA - mitad_alto, dest_y))
+
+        dx = dest_x - (pos.x + mitad_ancho)
+        dy = dest_y - (pos.y + mitad_alto)
+        distancia = math.hypot(dx, dy)
+        paso = pos.velocidad * dt
+
+        if distancia <= paso or distancia <= 1.0:
+            pos.x = dest_x - mitad_ancho
+            pos.y = dest_y - mitad_alto
+            rutina.destino = None
+            rutina.estado = ESTADO_INACTIVO
+            return
+
+        pos.x += dx / distancia * paso
+        pos.y += dy / distancia * paso
 
     def _nodo(self, mundo, rutina):
         if rutina.objetivo is None:
