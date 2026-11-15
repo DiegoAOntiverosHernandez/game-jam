@@ -8,7 +8,11 @@ ESTADO_MOVIENDOSE = "moviendose"
 ESTADO_YENDO_AL_RECURSO = "yendo_al_recurso"
 ESTADO_RECOLECTANDO = "recolectando"
 ESTADO_YENDO_A_CASA = "yendo_a_casa"
-
+ESTADO_DEPOSITANDO = "depositando"
+ESTADO_HAMBRIENTO = "hambriento"       # parado, con el ícono, esperando el clic
+ESTADO_YENDO_A_COMER = "yendo_a_comer"
+ESTADO_COMIENDO = "comiendo"
+ESTADO_MUERTO = "muerto"
 
 @dataclass
 class ComponenteTransformacion:
@@ -51,3 +55,18 @@ class ComponenteRutinaTrabajador:
     carga: int = 0                     # unidades que lleva encima
     tipo_carga: Optional[str] = None   # "agua" o "comida"
     temporizador: float = 0.0          # avance de la extracción
+
+@dataclass
+class ComponenteReloj:
+    dia: int = 1
+    segundos_dia: float = 0.0   # segundos de juego dentro del día actual
+    velocidad: float = 1        # x1, x2 o x5
+
+@dataclass
+class ComponenteNecesidades:
+    segundos_ciclo: float = 0.0                # avance hacia el próximo hambre
+    estado_previo: str = ESTADO_INACTIVO       # qué hacía al sentir hambre
+    casa: Optional[int] = None                 # id de la Casa donde come
+    descanso: float = 0.0                      # avance del descanso al comer
+    segundos_hambre: float = 0.0               # tiempo con el ícono sin atender
+    segundos_muerto: float = 0.0               # tiempo desde que murió

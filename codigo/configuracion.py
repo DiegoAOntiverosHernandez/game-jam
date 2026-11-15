@@ -24,6 +24,7 @@ TAMANO_CASA_CAMPANA = (64, 64)         # 2x2 casillas
 
 # --- Tiempo -------------------------------------------------------------------
 SEGUNDOS_POR_DIA = 60                  # a velocidad x1 equivale a 60 s reales
+HORAS_POR_DIA = 24
 DIAS_PREPARACION = 50
 DIAS_SEQUIA = 20
 DIAS_TOTALES = DIAS_PREPARACION + DIAS_SEQUIA   # 70
@@ -40,14 +41,17 @@ COSTO_PNJ_PRIMERO = 20                 # de comida
 COSTO_PNJ_INCREMENTO = 10              # por cada PNJ adicional
 CARGA_POR_VIAJE = 5
 SEGUNDOS_POR_UNIDAD_EXTRAIDA = 0.5     # tiempo para sacar 1 unidad de un recurso
+SEGUNDOS_POR_UNIDAD_DEPOSITADA = 0.5
 
 # --- Necesidades y consumo ----------------------------------------------------
 SEGUNDOS_CICLO_CONSUMO = 30            # cada ciclo llega el hambre
 SEGUNDOS_DESCANSO_COMER = 10
 SEGUNDOS_LIMITE_HAMBRE = 12            # tiempo para atender el hambre antes de morir
+TAMANO_ICONO_HAMBRE = 16               # lado del cuadro del ícono (píxeles)
 
 CONSUMO_INACTIVO = {"comida": 1, "agua": 2}      # por ciclo
 CONSUMO_TRABAJANDO = {"comida": 2, "agua": 3}    # por ciclo
+SEGUNDOS_CUERPO_VISIBLE = 3            # cuánto se ve el PNJ muerto antes de desaparecer
 
 # --- Reservas de la Casa de Campaña -------------------------------------------
 RESERVA_INICIAL_AGUA = 30
@@ -82,3 +86,12 @@ CARDON_UMBRAL_MUY_BAJO = 1             # 1; con 0 se muestra agotado
 FAUNA_INICIAL = 2
 FAUNA_MAXIMA = 12
 FAUNA_SEGUNDOS_REPRODUCCION = 30
+
+# --- Ciclo de luz (día / noche) ---------------------------------------------
+HORA_INICIAL = 8                       # el juego arranca a las 08:00
+HORA_AMANECER_INICIO = 5               # empieza a aclarar
+HORA_DIA_PLENO = 8                     # ya es de día completo
+HORA_ATARDECER_INICIO = 18             # empieza a oscurecer
+HORA_NOCHE_PLENA = 21                  # noche cerrada
+COLOR_NOCHE = (10, 20, 60)             # azul oscuro
+NOCHE_ALPHA_MAXIMA = 150               # opacidad máxima de la noche (0 a 255)
