@@ -1,4 +1,4 @@
-# Competencia de Videojuegos BCS 2026 — El Último Aguaje: Legado Cochimí *(título provisional)*
+# Competencia de Videojuegos BCS 2026 — El Respiro de la Sierra cochimie
 
 > **Competencia:** Diseñando juegos para transformar los retos de BCS (2026)  
 > **Temáticas:** Protección del ecosistema, escasez y distribución del agua  
