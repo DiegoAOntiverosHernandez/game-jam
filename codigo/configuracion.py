@@ -49,7 +49,7 @@ SEGUNDOS_POR_UNIDAD_DEPOSITADA = 0.5
 SEGUNDOS_INACTIVO_PARA_SENTARSE = 8    # tiempo sin hacer nada antes de sentarse
 
 # --- Necesidades y consumo ----------------------------------------------------
-SEGUNDOS_CICLO_CONSUMO = 35            # cada ciclo llega el hambre
+SEGUNDOS_CICLO_CONSUMO = 45            # cada ciclo llega el hambre
 SEGUNDOS_DESCANSO_COMER = 10           # tiempo que tardan comiendo en la base
 SEGUNDOS_LIMITE_HAMBRE = 12            # tiempo para atender el hambre antes de morir
 TAMANO_ICONO_HAMBRE = 22               # lado del cuadro blanco del ícono (píxeles)
