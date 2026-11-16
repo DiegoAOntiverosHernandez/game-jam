@@ -57,11 +57,14 @@ def main():
             if nombre in ESCENAS:
                 detener_todo_audio()  # cada escena arranca su propio sonido
                 escena = ESCENAS[nombre](pantalla)
+            elif nombre == "menu":
+                # Mientras no esté conectado el menú, el botón "Salir al menú" cierra el juego
+                ejecutando = False
             else:
                 print(f"[main] Escena desconocida: {nombre}")
                 escena.siguiente = None
 
-    detener_todo_audio()
+    detener_todo_audio(cerrar_mixer=True)
     pygame.quit()
 
 

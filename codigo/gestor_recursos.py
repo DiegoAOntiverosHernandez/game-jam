@@ -176,12 +176,25 @@ def iniciar_ost():
         pass
 
 
-def detener_todo_audio():
-    """Detiene todos los canales y la música al cerrar el juego."""
+def reproducir_fin_del_juego():
+    """Detiene todo sonido ambiental y música, y reproduce fin_del_juego.mp3."""
+    try:
+        _asegurar_mixer()
+        pygame.mixer.stop()
+        pygame.mixer.music.stop()
+        reproducir_sonido("fin_del_juego.mp3", carpeta="sonidos", categoria="musica")
+    except pygame.error:
+        pass
+
+
+def detener_todo_audio(cerrar_mixer=False):
+    """Detiene todos los canales y la música; cierra el mixer al salir del programa."""
     try:
         if pygame.mixer.get_init():
             pygame.mixer.stop()
             pygame.mixer.music.stop()
-            pygame.mixer.quit()
+            if cerrar_mixer:
+                _cache_sonidos.clear()
+                pygame.mixer.quit()
     except pygame.error:
         pass

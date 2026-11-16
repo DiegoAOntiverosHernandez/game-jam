@@ -34,7 +34,7 @@ class EscenaCarga:
         self.tiempo = 0.0
         self.indice = 0
 
-        self.fuente_titulo = pygame.font.SysFont("arial", 56, bold=True, italic=True)
+        self.fuente_titulo = pygame.font.SysFont("arial", 42, bold=True, italic=True)
         self.fuente_subtitulo = pygame.font.SysFont("arial", 28, italic=True)
         self.fuente_consejo = pygame.font.SysFont("arial", 26)
         self.fuente_chica = pygame.font.SysFont("arial", 18)
@@ -92,10 +92,8 @@ class EscenaCarga:
         centro = cfg.ANCHO_VENTANA // 2
         p.fill(COLOR_FONDO)
 
-        titulo = self.fuente_titulo.render("El Último Aguaje", True, COLOR_CREMA)
-        p.blit(titulo, titulo.get_rect(center=(centro, 70)))
-        subtitulo = self.fuente_subtitulo.render("Legado Cochimí", True, COLOR_CAFE_CLARO)
-        p.blit(subtitulo, subtitulo.get_rect(center=(centro, 122)))
+        titulo = self.fuente_titulo.render("EL RESPIRO DE LA SIERRA COCHIMI", True, COLOR_CREMA)
+        p.blit(titulo, titulo.get_rect(center=(centro, 90)))
 
         # Caja del consejo
         pygame.draw.rect(p, COLOR_CREMA, self.caja)

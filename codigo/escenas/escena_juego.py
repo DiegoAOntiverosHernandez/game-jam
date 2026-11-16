@@ -11,6 +11,7 @@ from codigo.ecs.componentes import (
     ComponenteAnimal,
     ComponenteNecesidades,
     ComponenteNodoRecurso,
+    ComponenteObstaculo,
     ComponenteReloj,
     ComponenteRenderizado,
     ComponenteRutinaTrabajador,
@@ -29,11 +30,16 @@ from codigo.ecs.sistemas import (
     SistemaAnimales,
     crear_venado,
 )
-from codigo.gestor_recursos import iniciar_ambiente, iniciar_ost, reproducir_sonido
+from codigo.gestor_recursos import (
+    iniciar_ambiente,
+    iniciar_ost,
+    reproducir_fin_del_juego,
+    reproducir_sonido,
+)
 
 # Matriz de 18 filas x 24 columnas (cada posición es una casilla de 32x32 px)
 # Códigos en configuracion.py:
-#   1=Base, 4=PNJ inicial, 5=Hierba, 6=Alicoche, 7=Cactus, 8=Palma, 9=Palo blanco
+#   1=Base, 4=PNJ inicial, 5=Hierba, 6=Alicoche, 7=Cactus, 8=Palma, 9=Palo blanco, 11=Piedra
 # Los aguajes (2), cardones (3) y venados (10) ya NO se leen de aquí:
 # se colocan al azar en cada partida (ver _cargar_mapa_desde_matriz).
 MAPA_INICIAL = [
@@ -43,15 +49,15 @@ MAPA_INICIAL = [
     [ 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 2
     [ 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 3
     [ 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 4
-    [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 5
+    [ 0, 0, 0, 0, 0, 0, 0, 0,11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 5
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 6
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 7
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 8 (Base en col 11)
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 9
-    [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 10
+    [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,11, 0, 0, 0, 0, 0, 0, 0],  # fila 10
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 11
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 12 (PNJ en col 11 y 13)
-    [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 13
+    [ 0, 0, 0, 0, 0, 0, 0, 0, 0,11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 13
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 14
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 15
     [ 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 16
@@ -84,6 +90,8 @@ class EscenaJuego:
         self.temporizador_pajaros = 0.0
         self.tiempo_juego_real = 0.0
         self.ost_iniciado = False
+        self.fin_del_juego = False
+        self.mensaje_fin_juego = ""
 
         self.id_campamento = None
         self._cargar_mapa_desde_matriz()
@@ -121,12 +129,15 @@ class EscenaJuego:
                     cantidad["venado"] += 1
                 elif celda in cfg.SPRITES_DECORACION:
                     ruta_sprite, (ancho, alto) = cfg.SPRITES_DECORACION[celda]
-                    self.mundo.crear_entidad(
+                    componentes_deco = [
                         ComponenteTransformacion(x, (fila + 1) * t - alto),
                         ComponenteRenderizado(
                             ancho, alto, cfg.COLOR_DECORACION, sprite=ruta_sprite
                         ),
-                    )
+                    ]
+                    if celda == cfg.CASILLA_PIEDRA:
+                        componentes_deco.append(ComponenteObstaculo())
+                    self.mundo.crear_entidad(*componentes_deco)
                     ocupados.append(pygame.Rect(x, (fila + 1) * t - alto, ancho, alto))
                 elif celda == cfg.CASILLA_PNJ:
                     posiciones_pnj.append((x, y))
@@ -211,22 +222,28 @@ class EscenaJuego:
             if rutina.estado != ESTADO_MUERTO
         )
 
-    def costo_pnj(self):
+    def costo_pnj_comida(self):
         adicionales = max(0, self.pnj_vivos() - cfg.PNJ_INICIALES)
         return cfg.COSTO_PNJ_PRIMERO + cfg.COSTO_PNJ_INCREMENTO * adicionales
+
+    def costo_pnj_agua(self):
+        adicionales = max(0, self.pnj_vivos() - cfg.PNJ_INICIALES)
+        return cfg.COSTO_PNJ_AGUA_PRIMERO + cfg.COSTO_PNJ_INCREMENTO * adicionales
 
     def puede_crear_pnj(self):
         almacen = self.mundo.obtener(self.id_campamento, ComponenteAlmacen)
         return (
             self.pnj_vivos() < cfg.PNJ_MAXIMOS
-            and almacen.comida >= self.costo_pnj()
+            and almacen.comida >= self.costo_pnj_comida()
+            and almacen.agua >= self.costo_pnj_agua()
         )
 
     def crear_pnj_nuevo(self):
         if not self.puede_crear_pnj():
             return
         almacen = self.mundo.obtener(self.id_campamento, ComponenteAlmacen)
-        almacen.comida -= self.costo_pnj()
+        almacen.comida -= self.costo_pnj_comida()
+        almacen.agua -= self.costo_pnj_agua()
         casa = self.mundo.obtener(self.id_campamento, ComponenteTransformacion)
         ancho_casa, alto_casa = cfg.TAMANO_CASA_CAMPANA
         x = casa.x + (ancho_casa - cfg.TAMANO_SPRITE_PNJ[0]) / 2 + random.uniform(-20, 20)
@@ -234,13 +251,20 @@ class EscenaJuego:
         self._crear_cochimi(x, y)
         reproducir_sonido("sonidos ambientales/sonido_de_apericion_de_nuevo_aldeano.mp3")
 
+    def _activar_fin_del_juego(self, mensaje):
+        if self.fin_del_juego:
+            return
+        self.fin_del_juego = True
+        self.mensaje_fin_juego = mensaje
+        reproducir_fin_del_juego()
+
     def manejar_evento(self, evento):
         if self.sistema_interfaz.manejar_evento(self, evento):
             return
         self.sistema_entrada.manejar_evento(self.mundo, evento)
 
     def actualizar(self, dt):
-        if self.sistema_interfaz.pausado:
+        if self.fin_del_juego or self.sistema_interfaz.pausado:
             return
 
         if self.hay_hambre():
@@ -258,6 +282,31 @@ class EscenaJuego:
             reproducir_sonido("sonidos ambientales/pajaros_fondo.WAV", categoria="ambiente")
 
         self.mundo.actualizar(dt_juego)
+
+        # Actualizar contadores de escasez en el almacén y verificar condiciones de derrota
+        almacen = self.mundo.obtener(self.id_campamento, ComponenteAlmacen)
+        if almacen is not None:
+            if almacen.agua <= 0:
+                almacen.segundos_sin_agua += dt_juego
+            else:
+                almacen.segundos_sin_agua = 0.0
+
+            if almacen.agua <= 0 and almacen.comida <= 0:
+                almacen.segundos_sin_recursos += dt_juego
+            else:
+                almacen.segundos_sin_recursos = 0.0
+
+            if (
+                almacen.segundos_sin_recursos
+                >= cfg.DIAS_TOLERANCIA_SIN_RECURSOS * cfg.SEGUNDOS_POR_DIA
+            ):
+                self._activar_fin_del_juego(
+                    "No lograste recolectar alimentos y no sobreviviste"
+                )
+                return
+
+        if self.pnj_vivos() <= 0:
+            self._activar_fin_del_juego("No sobreviviste, has fallado como líder")
 
     def dibujar(self):
         self.pantalla.fill(cfg.COLOR_PANEL)

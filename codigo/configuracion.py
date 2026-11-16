@@ -39,17 +39,18 @@ VELOCIDAD_MAXIMA_SEQUIA = 5            # el botón x5 sigue disponible
 PNJ_INICIALES = 2
 PNJ_MAXIMOS = 7                        # vivos al mismo tiempo
 PNJ_VELOCIDAD = 64
-COSTO_PNJ_PRIMERO = 20                 # de comida
-COSTO_PNJ_INCREMENTO = 10              # por cada PNJ adicional
-CARGA_POR_VIAJE = 5
+COSTO_PNJ_PRIMERO = 30                 # de comida
+COSTO_PNJ_AGUA_PRIMERO = 10            # de agua
+COSTO_PNJ_INCREMENTO = 10              # +10 de comida y +10 de agua por cada PNJ adicional
+CARGA_POR_VIAJE = 3                    # máximo de agua por viaje
 CARGA_POR_VIAJE_COMIDA = 3             # máximo de pitahayas por viaje para coincidir con los sprites
 SEGUNDOS_POR_UNIDAD_EXTRAIDA = 0.5     # tiempo para sacar 1 unidad de un recurso
 SEGUNDOS_POR_UNIDAD_DEPOSITADA = 0.5
 SEGUNDOS_INACTIVO_PARA_SENTARSE = 8    # tiempo sin hacer nada antes de sentarse
 
 # --- Necesidades y consumo ----------------------------------------------------
-SEGUNDOS_CICLO_CONSUMO = 30            # cada ciclo llega el hambre
-SEGUNDOS_DESCANSO_COMER = 10
+SEGUNDOS_CICLO_CONSUMO = 35            # cada ciclo llega el hambre
+SEGUNDOS_DESCANSO_COMER = 10           # tiempo que tardan comiendo en la base
 SEGUNDOS_LIMITE_HAMBRE = 12            # tiempo para atender el hambre antes de morir
 TAMANO_ICONO_HAMBRE = 22               # lado del cuadro blanco del ícono (píxeles)
 SEGUNDOS_PAJAROS_FONDO = 45            # cada cuánto suenan los pájaros de fondo
@@ -57,6 +58,9 @@ SEGUNDOS_INICIO_OST = 25               # segundo real en el que inicia la músic
 
 CONSUMO_INACTIVO = {"comida": 1, "agua": 2}      # por ciclo
 CONSUMO_TRABAJANDO = {"comida": 2, "agua": 3}    # por ciclo
+COMIDA_EXTRA_SIN_AGUA = 2                        # +2 de comida cuando no hay agua
+DIAS_MAXIMOS_SIN_AGUA = 3                        # al 4to día sin agua ya no pueden comer
+DIAS_TOLERANCIA_SIN_RECURSOS = 1                 # 1 día de margen con 0 agua y 0 comida
 SEGUNDOS_CUERPO_VISIBLE = 3            # cuánto se ve el PNJ muerto antes de desaparecer
 
 # --- Reservas de la Casa de Campaña -------------------------------------------
@@ -64,9 +68,10 @@ RESERVA_INICIAL_AGUA = 30
 RESERVA_INICIAL_COMIDA = 30
 RESERVA_MAXIMA = 600                   # de cada recurso
 
-# El sprite de la Casa de Campaña depende del menor de los dos niveles
-NIVEL_RESERVA_ALTO = 200               # más de 200
-NIVEL_RESERVA_MEDIO = 100              # de 100 a 200; de 1 a 99 es bajo; 0 es nada
+# El sprite de la Casa de Campaña depende de cuánta comida y agua hay
+NIVEL_RESERVA_ALTO = 80                # 80 o más de agua y comida -> Base_nivel_alto.png
+NIVEL_RESERVA_MEDIO = 60               # 60 o más de agua y comida -> Base_nivel_medio.png
+NIVEL_RESERVA_NADA = 5                 # 5 o menos de agua y comida -> Base_nivel_nada.png (resto: bajo)
 
 # --- Aguajes ------------------------------------------------------------------
 #CANTIDAD_AGUAJES = 3
@@ -78,8 +83,8 @@ AGUAJE_BOTES_RECUPERADOS = 5           # al terminar la recuperación
 # --- Cardones -----------------------------------------------------------------
 #CANTIDAD_CARDONES = 6
 CARDON_MAXIMO = 10                     # pitahayas
-CARDON_SEGUNDOS_REGENERACION = 25      # +1 pitahaya cada 25 s
-CARDON_SEGUNDOS_RECUPERACION = 120     # si se vacía a 0
+CARDON_SEGUNDOS_REGENERACION = 15      # +1 pitahaya cada 15 s
+CARDON_SEGUNDOS_RECUPERACION = 60      # 1 minuto (60 s) si se vacía por completo a 0
 CARDON_PITAHAYAS_RECUPERADAS = 3       # al terminar la recuperación
 
 # Sprite del cardón según pitahayas restantes (coincide con viajes de 3: 10 -> 7 -> 4 -> 1 -> 0)
@@ -118,6 +123,7 @@ CASILLA_CACTUS = 7       # Decoración: cactus.png (32x64)
 CASILLA_PALMA = 8        # Decoración: Palma.png (32x64)
 CASILLA_PALO_BLANCO = 9  # Decoración: palo_blanco.png (32x64)
 CASILLA_VENADO = 10      # Animal: venado_de_frente.png (32x32)
+CASILLA_PIEDRA = 11      # Obstáculo: piedra.png (32x32, con colisión)
 
 SPRITES_DECORACION = {
     CASILLA_HIERBA: ("Vegetacion/Decoracion/hierba.png", (32, 32)),
@@ -125,6 +131,7 @@ SPRITES_DECORACION = {
     CASILLA_CACTUS: ("Vegetacion/Decoracion/cactus.png", (32, 64)),
     CASILLA_PALMA: ("Vegetacion/Decoracion/Palma.png", (32, 64)),
     CASILLA_PALO_BLANCO: ("Vegetacion/Decoracion/palo_blanco.png", (32, 64)),
+    CASILLA_PIEDRA: ("Vegetacion/Decoracion/piedra.png", (32, 32)),
 }
 
 # --- Generación por partida ---------------------------------------------------

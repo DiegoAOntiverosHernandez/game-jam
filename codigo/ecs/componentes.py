@@ -34,6 +34,14 @@ class ComponenteRenderizado:
 class ComponenteAlmacen:
     agua: int = 0
     comida: int = 0
+    segundos_sin_agua: float = 0.0
+    segundos_sin_recursos: float = 0.0
+
+
+@dataclass
+class ComponenteObstaculo:
+    """Entidad sólida que los PNJ no pueden atravesar (piedra.png)."""
+    bloquea: bool = True
 
 
 @dataclass

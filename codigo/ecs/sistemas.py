@@ -26,6 +26,7 @@ from codigo.ecs.componentes import (
     ComponenteAnimal,
     ComponenteNecesidades,
     ComponenteNodoRecurso,
+    ComponenteObstaculo,
     ComponenteReloj,
     ComponenteRenderizado,
     ComponenteRutinaTrabajador,
@@ -72,11 +73,42 @@ def _reproducir_voz_pnj(rutina, accion):
         reproducir_sonido(f"{carpeta}/agua_{sufijo}.mp3", canal_voz=True)
     elif accion == "comida":
         reproducir_sonido(f"{carpeta}/Pitahaya_dulce_{sufijo}.mp3", canal_voz=True)
-    elif accion == "animal" and not es_mujer:
-        reproducir_sonido("voces de hombre/somus_mover1.wav", canal_voz=True)
+    elif accion == "animal":
+        if es_mujer:
+            reproducir_sonido("voces de mujer/somus_m_.mp3", canal_voz=True)
+        else:
+            reproducir_sonido("voces de hombre/somus_mover1.wav", canal_voz=True)
     elif accion == "muerte":
         archivo = "Female_Death.mp3" if es_mujer else "dark_souls_moan.mp3"
         reproducir_sonido(f"{carpeta}/{archivo}", canal_voz=False, categoria="voces")
+
+
+def puede_alimentar_pnj(mundo, id_casa, trabajando):
+    """Calcula si el almacén permite alimentar al PNJ y cuánto consume (puede, comida, agua)."""
+    if id_casa is None:
+        return False, 0, 0
+    almacen = mundo.obtener(id_casa, ComponenteAlmacen)
+    if almacen is None or almacen.comida <= 0:
+        return False, 0, 0
+
+    consumo = cfg.CONSUMO_TRABAJANDO if trabajando else cfg.CONSUMO_INACTIVO
+    comida_base = consumo["comida"]
+    agua_base = consumo["agua"]
+
+    if almacen.agua >= agua_base:
+        if almacen.comida >= comida_base:
+            return True, comida_base, agua_base
+        return False, 0, 0
+
+    # Sin agua suficiente: máximo 3 días aguantando sin agua y comiendo +2 extra
+    limite_sin_agua = cfg.DIAS_MAXIMOS_SIN_AGUA * cfg.SEGUNDOS_POR_DIA
+    if almacen.segundos_sin_agua >= limite_sin_agua:
+        return False, 0, 0
+
+    comida_sin_agua = comida_base + cfg.COMIDA_EXTRA_SIN_AGUA
+    if almacen.comida >= comida_sin_agua:
+        return True, comida_sin_agua, almacen.agua
+    return False, 0, 0
 
 
 class SistemaEntradaYSeleccion:
@@ -133,10 +165,7 @@ class SistemaEntradaYSeleccion:
             rutina.destino = None
             rutina.temporizador = 0.0
             rutina.estado = ESTADO_CAZANDO
-            if rutina.genero == "h":
-                _reproducir_voz_pnj(rutina, "animal")
-            else:
-                _reproducir_voz_pnj(rutina, "adelante")
+            _reproducir_voz_pnj(rutina, "animal")
             return
 
         nodo = mundo.obtener(id_clic, ComponenteNodoRecurso)
@@ -191,13 +220,19 @@ class SistemaEntradaYSeleccion:
             sel.seleccionado = False
 
     def _clic_en_icono_hambre(self, mundo, punto):
-        for _, (pos, imagen, rutina) in mundo.entidades_con(
+        for id_entidad, (pos, imagen, rutina) in mundo.entidades_con(
             ComponenteTransformacion, ComponenteRenderizado, ComponenteRutinaTrabajador
         ):
             if rutina.estado == ESTADO_HAMBRIENTO and rect_icono_hambre(
                 pos, imagen
             ).collidepoint(punto):
-                rutina.estado = ESTADO_YENDO_A_COMER
+                necesidades = mundo.obtener(id_entidad, ComponenteNecesidades)
+                if necesidades is None:
+                    return True
+                trabajando = necesidades.estado_previo in ESTADOS_TRABAJO
+                puede, _, _ = puede_alimentar_pnj(mundo, necesidades.casa, trabajando)
+                if puede:
+                    rutina.estado = ESTADO_YENDO_A_COMER
                 return True
         return False
 
@@ -227,7 +262,7 @@ class SistemaRutinaTrabajador:
             if rutina.estado != ESTADO_MUERTO and rutina.genero == "h":
                 self._verificar_vista_animal(mundo, pos, imagen, rutina)
             if rutina.estado == ESTADO_MOVIENDOSE:
-                self._mover_a_punto(pos, imagen, rutina, dt)
+                self._mover_a_punto(mundo, pos, imagen, rutina, dt)
             elif rutina.estado == ESTADO_YENDO_AL_RECURSO:
                 self._ir_al_recurso(mundo, pos, imagen, rutina, dt)
             elif rutina.estado == ESTADO_RECOLECTANDO:
@@ -263,7 +298,56 @@ class SistemaRutinaTrabajador:
         elif not cerca:
             rutina.viendo_animal = False
 
-    def _mover_a_punto(self, pos, imagen, rutina, dt):
+    def _choca_con_piedra(self, mundo, rect_prueba):
+        for _, (pos_o, img_o, _) in mundo.entidades_con(
+            ComponenteTransformacion, ComponenteRenderizado, ComponenteObstaculo
+        ):
+            rect_obs = pygame.Rect(pos_o.x, pos_o.y, img_o.ancho, img_o.alto)
+            if rect_prueba.colliderect(rect_obs):
+                return rect_obs
+        return None
+
+    def _avanzar_esquivando_piedras(self, mundo, pos, imagen, dx_unit, dy_unit, paso):
+        """Avanza hacia (dx_unit, dy_unit); si se topa con una piedra, la rodea."""
+        nx = pos.x + dx_unit * paso
+        ny = pos.y + dy_unit * paso
+        rect_nuevo = pygame.Rect(nx, ny, imagen.ancho, imagen.alto)
+        obs = self._choca_con_piedra(mundo, rect_nuevo)
+        if obs is None:
+            pos.x = nx
+            pos.y = ny
+            return True
+
+        # Calcula el vector perpendicular que rodea la piedra por el lado más cercano
+        cx_pnj = pos.x + imagen.ancho / 2
+        cy_pnj = pos.y + imagen.alto / 2
+        vx = cx_pnj - obs.centerx
+        vy = cy_pnj - obs.centery
+        # Dos perpendiculares posibles a la dirección de avance: (-dy, dx) y (dy, -dx)
+        p1x, p1y = -dy_unit, dx_unit
+        p2x, p2y = dy_unit, -dx_unit
+        if (p1x * vx + p1y * vy) >= (p2x * vx + p2y * vy):
+            px, py = p1x, p1y
+        else:
+            px, py = p2x, p2y
+
+        for rx, ry in (
+            (px, py),
+            (dx_unit * 0.5 + px * 0.86, dy_unit * 0.5 + py * 0.86),
+            (-px, -py),
+        ):
+            norma = math.hypot(rx, ry) or 1.0
+            sx = pos.x + (rx / norma) * paso
+            sy = pos.y + (ry / norma) * paso
+            sx = max(0, min(cfg.ANCHO_MAPA - imagen.ancho, sx))
+            sy = max(0, min(cfg.ALTO_MAPA - imagen.alto, sy))
+            if self._choca_con_piedra(mundo, pygame.Rect(sx, sy, imagen.ancho, imagen.alto)) is None:
+                pos.x = sx
+                pos.y = sy
+                return True
+        return False
+
+    def _mover_a_punto(self, mundo, pos, imagen, rutina, dt):
         """Camina hacia cualquier coordenada libre (x, y) donde el usuario hizo clic."""
         if rutina.destino is None:
             rutina.estado = ESTADO_INACTIVO
@@ -285,14 +369,19 @@ class SistemaRutinaTrabajador:
         paso = pos.velocidad * dt
 
         if distancia <= paso or distancia <= 1.0:
-            pos.x = dest_x - mitad_ancho
-            pos.y = dest_y - mitad_alto
+            rect_final = pygame.Rect(dest_x - mitad_ancho, dest_y - mitad_alto, imagen.ancho, imagen.alto)
+            if self._choca_con_piedra(mundo, rect_final) is None:
+                pos.x = dest_x - mitad_ancho
+                pos.y = dest_y - mitad_alto
             rutina.destino = None
             rutina.estado = ESTADO_INACTIVO
             return
 
-        pos.x += dx / distancia * paso
-        pos.y += dy / distancia * paso
+        if not self._avanzar_esquivando_piedras(
+            mundo, pos, imagen, dx / distancia, dy / distancia, paso
+        ):
+            rutina.destino = None
+            rutina.estado = ESTADO_INACTIVO
 
     def _nodo(self, mundo, rutina):
         if rutina.objetivo is None:
@@ -300,7 +389,7 @@ class SistemaRutinaTrabajador:
         return mundo.obtener(rutina.objetivo, ComponenteNodoRecurso)
 
     def _mover_hacia(self, mundo, pos, imagen, id_destino, dt, rutina=None):
-        """Camina en línea recta hacia el destino. Devuelve True al llegar."""
+        """Camina hacia el destino rodeando piedras. Devuelve True al llegar."""
         destino_pos = mundo.obtener(id_destino, ComponenteTransformacion)
         destino_img = mundo.obtener(id_destino, ComponenteRenderizado)
         dx = (destino_pos.x + destino_img.ancho / 2) - (pos.x + imagen.ancho / 2)
@@ -315,8 +404,9 @@ class SistemaRutinaTrabajador:
             return True
 
         paso = pos.velocidad * dt
-        pos.x += dx / distancia * paso
-        pos.y += dy / distancia * paso
+        self._avanzar_esquivando_piedras(
+            mundo, pos, imagen, dx / distancia, dy / distancia, paso
+        )
         return False
 
     def _ir_al_recurso(self, mundo, pos, imagen, rutina, dt):
@@ -342,6 +432,7 @@ class SistemaRutinaTrabajador:
             else cfg.CARGA_POR_VIAJE
         )
         rutina.temporizador += dt
+        rutina.tiempo_animacion += dt
         while (
             rutina.temporizador >= cfg.SEGUNDOS_POR_UNIDAD_EXTRAIDA
             and rutina.carga < carga_maxima
@@ -410,11 +501,17 @@ class SistemaRutinaTrabajador:
         if not self._mover_hacia(mundo, pos, imagen, necesidades.casa, dt, rutina):
             return
 
-        # Al llegar come: el consumo se descuenta de las reservas en este momento
+        # Verificar que aún alcance la comida/agua al llegar a la Casa
         trabajando = necesidades.estado_previo in ESTADOS_TRABAJO
-        consumo = cfg.CONSUMO_TRABAJANDO if trabajando else cfg.CONSUMO_INACTIVO
-        almacen.comida = max(0, almacen.comida - consumo["comida"])
-        almacen.agua = max(0, almacen.agua - consumo["agua"])
+        puede, comida_req, agua_req = puede_alimentar_pnj(
+            mundo, necesidades.casa, trabajando
+        )
+        if not puede:
+            rutina.estado = ESTADO_HAMBRIENTO
+            return
+
+        almacen.comida = max(0, almacen.comida - comida_req)
+        almacen.agua = max(0, almacen.agua - agua_req)
 
         archivo_comer = "comer1.mp3" if self._turno_comer % 2 == 0 else "comer2.mp3"
         self._turno_comer += 1
@@ -632,6 +729,7 @@ class SistemaRenderizado:
         self.fuente = pygame.font.Font(None, 20)
 
     def _sprite_pnj(self, rutina, seleccionado):
+        """Devuelve (ruta_sprite, espejar)."""
         es_mujer = rutina.genero == "m"
         carpeta = "Npcs/Cochimie mujer" if es_mujer else "Npcs/Cochimie hombre"
         prefijo_min = "cochimie_m" if es_mujer else "cochimie_h"
@@ -640,40 +738,46 @@ class SistemaRenderizado:
 
         if estado == ESTADO_MUERTO:
             sufijo = "muerta" if es_mujer else "muerto"
-            return f"{carpeta}/{prefijo_min}_{sufijo}.png"
+            return f"{carpeta}/{prefijo_min}_{sufijo}.png", False
         if estado == ESTADO_COMIENDO:
             sufijo = "sentada" if es_mujer else "sentando"
-            return f"{carpeta}/{prefijo_min}_{sufijo}.png"
+            return f"{carpeta}/{prefijo_min}_{sufijo}.png", False
         if estado == ESTADO_HAMBRIENTO:
             p = prefijo_min if es_mujer else prefijo_may
-            return f"{carpeta}/{p}_saludando.png"
+            return f"{carpeta}/{p}_saludando.png", False
         if estado == ESTADO_INACTIVO and seleccionado:
             # Sube y baja la mano alternando entre saludando y frente
             if int(rutina.tiempo_animacion / 0.35) % 2 == 0:
                 p = prefijo_min if es_mujer else prefijo_may
-                return f"{carpeta}/{p}_saludando.png"
+                return f"{carpeta}/{p}_saludando.png", False
             frente = "cochimie_M_frente.png" if es_mujer else "cochimie_h_frente.png"
-            return f"{carpeta}/{frente}"
-        if estado in (ESTADO_RECOLECTANDO, ESTADO_DEPOSITANDO):
+            return f"{carpeta}/{frente}", False
+        if estado == ESTADO_RECOLECTANDO:
+            secuencia_agarrar = (
+                f"{carpeta}/{prefijo_min}_lado_derecho.png",
+                f"{carpeta}/{prefijo_min}_agarrando1.png",
+                f"{carpeta}/{prefijo_min}_agarrando2.png",
+            )
+            idx = int(rutina.tiempo_animacion / 0.18) % 3
+            return secuencia_agarrar[idx], rutina.mirando_izquierda
+        if estado == ESTADO_DEPOSITANDO:
             lado = "lado_izquierdo" if rutina.mirando_izquierda else "lado_derecho"
-            return f"{carpeta}/{prefijo_min}_{lado}.png"
+            return f"{carpeta}/{prefijo_min}_{lado}.png", False
         if estado in (
             ESTADO_MOVIENDOSE,
             ESTADO_YENDO_AL_RECURSO,
             ESTADO_YENDO_A_CASA,
             ESTADO_YENDO_A_COMER,
+            ESTADO_CAZANDO,
         ):
             sufijo_dir = "_izquierda" if rutina.mirando_izquierda else ""
-            if es_mujer:
-                lado = "lado_izquierdo" if rutina.mirando_izquierda else "lado_derecho"
-                secuencia = (
-                    f"{carpeta}/cochimie_m_{lado}.png",
-                    f"{carpeta}/Cochimie_m_caminando2{sufijo_dir}.png",
-                    f"{carpeta}/Cochimie_m_caminando1{sufijo_dir}.png",
-                )
-                return secuencia[int(rutina.tiempo_animacion / 0.15) % 3]
-            cuadro = 1 + (int(rutina.tiempo_animacion / 0.2) % 2)
-            return f"{carpeta}/{prefijo_may}_caminando{cuadro}{sufijo_dir}.png"
+            lado = "lado_izquierdo" if rutina.mirando_izquierda else "lado_derecho"
+            secuencia = (
+                f"{carpeta}/{prefijo_min}_{lado}.png",
+                f"{carpeta}/{prefijo_may}_caminando2{sufijo_dir}.png",
+                f"{carpeta}/{prefijo_may}_caminando1{sufijo_dir}.png",
+            )
+            return secuencia[int(rutina.tiempo_animacion / 0.15) % 3], False
 
         # Inactivo: si lleva 8 s sin hacer nada y no está seleccionado, se sienta
         if (
@@ -682,11 +786,20 @@ class SistemaRenderizado:
             and rutina.segundos_inactivo >= cfg.SEGUNDOS_INACTIVO_PARA_SENTARSE
         ):
             sufijo = "sentada" if es_mujer else "sentando"
-            return f"{carpeta}/{prefijo_min}_{sufijo}.png"
+            return f"{carpeta}/{prefijo_min}_{sufijo}.png", False
 
         # Inactivo (mirando de frente)
         frente = "cochimie_M_frente.png" if es_mujer else "cochimie_h_frente.png"
-        return f"{carpeta}/{frente}"
+        return f"{carpeta}/{frente}", False
+
+    def _sprite_base(self, almacen):
+        if almacen.agua >= cfg.NIVEL_RESERVA_ALTO and almacen.comida >= cfg.NIVEL_RESERVA_ALTO:
+            return "base/Base_nivel_alto.png"
+        if almacen.agua >= cfg.NIVEL_RESERVA_MEDIO and almacen.comida >= cfg.NIVEL_RESERVA_MEDIO:
+            return "base/Base_nivel_medio.png"
+        if almacen.agua <= cfg.NIVEL_RESERVA_NADA and almacen.comida <= cfg.NIVEL_RESERVA_NADA:
+            return "base/Base_nivel_nada.png"
+        return "base/Base_nivel_bajo.png"
 
     def _sprite_cardon(self, cantidad):
         carpeta = "Vegetacion/Planta de recolecion"
@@ -707,13 +820,20 @@ class SistemaRenderizado:
         ):
             rect = pygame.Rect(pos.x, pos.y, imagen.ancho, imagen.alto)
             rutina = mundo.obtener(id_entidad, ComponenteRutinaTrabajador)
+            almacen = mundo.obtener(id_entidad, ComponenteAlmacen)
             nodo = mundo.obtener(id_entidad, ComponenteNodoRecurso)
-            animal = mundo.obtener(id_entidad, ComponenteAnimal)   # <- línea nueva
+            animal = mundo.obtener(id_entidad, ComponenteAnimal)
             sel = mundo.obtener(id_entidad, ComponenteSeleccionable)
             seleccionado = sel is not None and sel.seleccionado
 
             if rutina is not None:
-                ruta_sprite = self._sprite_pnj(rutina, seleccionado)
+                ruta_sprite, espejar = self._sprite_pnj(rutina, seleccionado)
+                superficie = cargar_imagen(
+                    ruta_sprite, (imagen.ancho, imagen.alto), imagen.color, espejar=espejar
+                )
+                pantalla.blit(superficie, rect.topleft)
+            elif almacen is not None:
+                ruta_sprite = self._sprite_base(almacen)
                 superficie = cargar_imagen(
                     ruta_sprite, (imagen.ancho, imagen.alto), imagen.color
                 )
@@ -822,8 +942,21 @@ class SistemaInterfaz:
             cx - 100, self.rect_caja_audio.bottom - 56, 200, 40
         )
 
+        # Pantalla de Fin del Juego
+        self.rect_caja_fin = pygame.Rect(cx - 250, cy - 170, 500, 340)
+        self.btn_reiniciar_fin = pygame.Rect(cx - 140, cy + 20, 280, 48)
+        self.btn_salir_fin = pygame.Rect(cx - 140, cy + 84, 280, 48)
+
     def manejar_evento(self, escena, evento):
         """Devuelve True si el evento fue consumido por la interfaz o la pausa."""
+        if escena.fin_del_juego:
+            if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
+                if self.btn_reiniciar_fin.collidepoint(evento.pos):
+                    escena.siguiente = "juego"
+                elif self.btn_salir_fin.collidepoint(evento.pos):
+                    escena.siguiente = "menu"  # cuando haya menú llevará al menú; si no, cierra
+            return True
+
         if evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE:
             if self.en_menu_audio:
                 self.en_menu_audio = False
@@ -915,20 +1048,78 @@ class SistemaInterfaz:
         txt_pnj = self.fuente.render("Nuevo Cochimie", True, (255, 255, 255))
         pantalla.blit(txt_pnj, txt_pnj.get_rect(center=self.boton_pnj.center))
 
-        detalle = "Máximo alcanzado" if vivos >= cfg.PNJ_MAXIMOS else f"Cuesta {escena.costo_pnj()} comida"
-        pantalla.blit(self.fuente.render(detalle, True, (255, 255, 255)), (x, 236))
-        pantalla.blit(self.fuente.render(f"PNJ: {vivos}/{cfg.PNJ_MAXIMOS}", True, (255, 255, 255)), (x, 262))
+        if vivos >= cfg.PNJ_MAXIMOS:
+            pantalla.blit(self.fuente.render("Máximo alcanzado", True, (255, 255, 255)), (x, 236))
+            pantalla.blit(
+                self.fuente.render(f"PNJ: {vivos}/{cfg.PNJ_MAXIMOS}", True, (255, 255, 255)),
+                (x, 262),
+            )
+        else:
+            c_comida = escena.costo_pnj_comida()
+            c_agua = escena.costo_pnj_agua()
+            pantalla.blit(
+                self.fuente.render(f"Cuesta {c_comida} comida", True, (255, 255, 255)),
+                (x, 234),
+            )
+            pantalla.blit(
+                self.fuente.render(f"y {c_agua} agua", True, (255, 255, 255)),
+                (x, 256),
+            )
+            pantalla.blit(
+                self.fuente.render(f"PNJ: {vivos}/{cfg.PNJ_MAXIMOS}", True, (255, 255, 255)),
+                (x, 282),
+            )
 
         pygame.draw.rect(pantalla, (138, 71, 14), self.boton_pausa)
         pygame.draw.rect(pantalla, (235, 221, 190), self.boton_pausa, 2)
         txt_pausa = self.fuente.render("Pausa", True, (255, 255, 255))
         pantalla.blit(txt_pausa, txt_pausa.get_rect(center=self.boton_pausa.center))
 
-        if self.pausado:
+        if escena.fin_del_juego:
+            self._dibujar_menu_fin_juego(escena, pantalla)
+        elif self.pausado:
             if self.en_menu_audio:
                 self._dibujar_menu_audio(pantalla)
             else:
                 self._dibujar_menu_pausa(pantalla)
+
+    def _dibujar_menu_fin_juego(self, escena, pantalla):
+        pygame.draw.rect(pantalla, (235, 221, 190), self.rect_caja_fin)
+        pygame.draw.rect(pantalla, (130, 65, 10), self.rect_caja_fin, 3)
+
+        titulo = self.fuente_titulo.render("Fin del juego", True, (160, 25, 25))
+        pantalla.blit(
+            titulo,
+            titulo.get_rect(center=(self.rect_caja_fin.centerx, self.rect_caja_fin.y + 52)),
+        )
+
+        # Partir el mensaje en líneas si es largo
+        palabras = escena.mensaje_fin_juego.split()
+        lineas, actual = [], ""
+        for p in palabras:
+            prueba = f"{actual} {p}".strip()
+            if self.fuente_boton.size(prueba)[0] <= self.rect_caja_fin.width - 40:
+                actual = prueba
+            else:
+                lineas.append(actual)
+                actual = p
+        if actual:
+            lineas.append(actual)
+
+        y_txt = self.rect_caja_fin.y + 105
+        for linea in lineas:
+            img_l = self.fuente_boton.render(linea, True, (30, 20, 10))
+            pantalla.blit(img_l, img_l.get_rect(center=(self.rect_caja_fin.centerx, y_txt)))
+            y_txt += 28
+
+        for rect_btn, etiqueta in (
+            (self.btn_reiniciar_fin, "Volver a jugar"),
+            (self.btn_salir_fin, "Salir al menú"),
+        ):
+            pygame.draw.rect(pantalla, (138, 71, 14), rect_btn)
+            pygame.draw.rect(pantalla, (235, 221, 190), rect_btn, 1)
+            txt = self.fuente_boton.render(etiqueta, True, (255, 255, 255))
+            pantalla.blit(txt, txt.get_rect(center=rect_btn.center))
 
     def _dibujar_menu_pausa(self, pantalla):
         pygame.draw.rect(pantalla, (235, 221, 190), self.rect_caja_pausa)
