@@ -26,6 +26,7 @@ class ComponenteRenderizado:
     ancho: int
     alto: int
     color: tuple      # imagen provisional hasta tener el sprite
+    sprite: Optional[str] = None
 
 
 @dataclass
@@ -55,6 +56,16 @@ class ComponenteRutinaTrabajador:
     carga: int = 0                     # unidades que lleva encima
     tipo_carga: Optional[str] = None   # "agua" o "comida"
     temporizador: float = 0.0          # avance de la extracción
+    genero: str = "h"                  # "h" (hombre) o "m" (mujer)
+    mirando_izquierda: bool = False    # dirección horizontal del sprite
+    tiempo_animacion: float = 0.0      # reloj para alternar cuadros al caminar
+    segundos_inactivo: float = 0.0     # tiempo quieto sin selección para sentarse
+    viendo_animal: bool = False        # evita repetir el audio de ver animal en cada fotograma
+
+
+@dataclass
+class ComponenteAnimal:
+    vivo: bool = True
 
 @dataclass
 class ComponenteReloj:

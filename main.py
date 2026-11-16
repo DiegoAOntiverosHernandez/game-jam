@@ -6,6 +6,7 @@ import pygame
 
 from codigo import configuracion as cfg
 from codigo.escenas.escena_juego import EscenaJuego
+from codigo.gestor_recursos import detener_todo_audio
 
 
 def activar_consciencia_dpi():
@@ -33,14 +34,13 @@ def main():
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 ejecutando = False
-            elif evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE:
-                ejecutando = False
             else:
                 escena.manejar_evento(evento)
         escena.actualizar(dt)
         escena.dibujar()
         pygame.display.flip()
 
+    detener_todo_audio()
     pygame.quit()
 
 

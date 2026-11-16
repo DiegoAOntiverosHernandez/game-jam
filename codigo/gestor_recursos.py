@@ -6,11 +6,30 @@
 """
 import os
 import sys
+import threading
 
 import pygame
 
 _cache = {}
+_cache_sonidos = {}
 _faltantes = set()  # para avisar una sola vez por archivo
+
+# Niveles de volumen del usuario (0 a 100)
+VOLUMENES = {
+    "general": 100,
+    "efectos": 100,
+    "voces": 100,
+    "ambiente": 80,
+    "musica": 85,
+}
+
+# Factores de mezcla base para que la música y el ambiente nunca opaquen las voces ni efectos
+_FACTOR_BASE = {
+    "efectos": 1.0,
+    "voces": 1.0,
+    "ambiente": 0.55,
+    "musica": 0.60,
+}
 
 
 def ruta_base():
@@ -56,3 +75,113 @@ def cargar_imagen(nombre, tamano=None, color_respaldo=(255, 0, 255),
 
     _cache[clave] = imagen
     return imagen
+
+
+def _asegurar_mixer():
+    if not pygame.mixer.get_init():
+        pygame.mixer.init()
+        pygame.mixer.set_num_channels(16)
+        pygame.mixer.set_reserved(2)  # Canal 0: voces, Canal 1: OST (08 Party.mp3)
+
+
+def volumen_efectivo(categoria):
+    general = VOLUMENES.get("general", 100) / 100.0
+    cat = VOLUMENES.get(categoria, 100) / 100.0
+    base = _FACTOR_BASE.get(categoria, 1.0)
+    return max(0.0, min(1.0, general * cat * base))
+
+
+def actualizar_volumenes():
+    """Actualiza en tiempo real el volumen de los canales activos y del ambiente."""
+    if not pygame.mixer.get_init():
+        return
+    try:
+        pygame.mixer.music.set_volume(volumen_efectivo("ambiente"))
+        pygame.mixer.Channel(0).set_volume(volumen_efectivo("voces"))
+        pygame.mixer.Channel(1).set_volume(volumen_efectivo("musica"))
+    except pygame.error:
+        pass
+
+
+def cargar_sonido(nombre, carpeta="sonidos"):
+    """Carga un archivo de audio (.mp3, .wav, .ogg) de forma segura."""
+    clave = (carpeta, nombre)
+    if clave in _cache_sonidos:
+        return _cache_sonidos[clave]
+
+    ruta = ruta_recurso(carpeta, nombre)
+    sonido = None
+    try:
+        _asegurar_mixer()
+        sonido = pygame.mixer.Sound(ruta)
+    except (pygame.error, FileNotFoundError):
+        if ruta not in _faltantes:
+            _faltantes.add(ruta)
+            print(f"[gestor_recursos] No se pudo cargar sonido: {ruta}")
+
+    _cache_sonidos[clave] = sonido
+    return sonido
+
+
+def reproducir_sonido(nombre, carpeta="sonidos", canal_voz=False, categoria=None):
+    """Reproduce un sonido aplicando el volumen de su categoría."""
+    sonido = cargar_sonido(nombre, carpeta)
+    if sonido is None:
+        return
+    if categoria is None:
+        categoria = "voces" if canal_voz else "efectos"
+    vol = volumen_efectivo(categoria)
+    try:
+        if canal_voz:
+            canal = pygame.mixer.Channel(0)
+            sonido.set_volume(1.0)
+            canal.set_volume(vol)
+            canal.play(sonido)
+        else:
+            sonido.set_volume(vol)
+            sonido.play()
+    except pygame.error:
+        pass
+
+
+def iniciar_ambiente():
+    """Inicia ambiental.mp3 en bucle continuo y precarga el OST en segundo plano."""
+    try:
+        _asegurar_mixer()
+        ruta_amb = ruta_recurso("sonidos", "sonidos ambientales/ambiental.mp3")
+        pygame.mixer.music.load(ruta_amb)
+        pygame.mixer.music.set_volume(volumen_efectivo("ambiente"))
+        pygame.mixer.music.play(loops=-1)
+        threading.Thread(
+            target=lambda: cargar_sonido("08 Party.mp3", carpeta="musica"),
+            daemon=True,
+        ).start()
+    except pygame.error as e:
+        print(f"[gestor_recursos] No se pudo iniciar audio ambiental: {e}")
+
+
+def iniciar_ost():
+    """Inicia 08 Party.mp3 en el canal reservado 1 sin detener el sonido ambiental."""
+    sonido = cargar_sonido("08 Party.mp3", carpeta="musica")
+    if sonido is None:
+        return
+    try:
+        _asegurar_mixer()
+        canal = pygame.mixer.Channel(1)
+        if not canal.get_busy():
+            sonido.set_volume(1.0)
+            canal.set_volume(volumen_efectivo("musica"))
+            canal.play(sonido, loops=-1)
+    except pygame.error:
+        pass
+
+
+def detener_todo_audio():
+    """Detiene todos los canales y la música al cerrar el juego."""
+    try:
+        if pygame.mixer.get_init():
+            pygame.mixer.stop()
+            pygame.mixer.music.stop()
+            pygame.mixer.quit()
+    except pygame.error:
+        pass

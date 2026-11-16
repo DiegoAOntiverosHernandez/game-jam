@@ -20,7 +20,7 @@ ALTO_VENTANA = ALTO_MAPA                      # 576
 
 # --- Tamaño de sprites (píxeles) --------------------------------------------
 TAMANO_SPRITE_PNJ = (32, 32)           # también existen sprites de 32x64
-TAMANO_CASA_CAMPANA = (64, 64)         # 2x2 casillas
+TAMANO_CASA_CAMPANA = (96, 96)         # 3x3 casillas
 
 # --- Tiempo -------------------------------------------------------------------
 SEGUNDOS_POR_DIA = 60                  # a velocidad x1 equivale a 60 s reales
@@ -42,12 +42,15 @@ COSTO_PNJ_INCREMENTO = 10              # por cada PNJ adicional
 CARGA_POR_VIAJE = 5
 SEGUNDOS_POR_UNIDAD_EXTRAIDA = 0.5     # tiempo para sacar 1 unidad de un recurso
 SEGUNDOS_POR_UNIDAD_DEPOSITADA = 0.5
+SEGUNDOS_INACTIVO_PARA_SENTARSE = 8    # tiempo sin hacer nada antes de sentarse
 
 # --- Necesidades y consumo ----------------------------------------------------
 SEGUNDOS_CICLO_CONSUMO = 30            # cada ciclo llega el hambre
 SEGUNDOS_DESCANSO_COMER = 10
 SEGUNDOS_LIMITE_HAMBRE = 12            # tiempo para atender el hambre antes de morir
-TAMANO_ICONO_HAMBRE = 16               # lado del cuadro del ícono (píxeles)
+TAMANO_ICONO_HAMBRE = 22               # lado del cuadro blanco del ícono (píxeles)
+SEGUNDOS_PAJAROS_FONDO = 45            # cada cuánto suenan los pájaros de fondo
+SEGUNDOS_INICIO_OST = 25               # segundo real en el que inicia la música (08 Party.mp3)
 
 CONSUMO_INACTIVO = {"comida": 1, "agua": 2}      # por ciclo
 CONSUMO_TRABAJANDO = {"comida": 2, "agua": 3}    # por ciclo
@@ -95,3 +98,33 @@ HORA_ATARDECER_INICIO = 18             # empieza a oscurecer
 HORA_NOCHE_PLENA = 21                  # noche cerrada
 COLOR_NOCHE = (10, 20, 60)             # azul oscuro
 NOCHE_ALPHA_MAXIMA = 150               # opacidad máxima de la noche (0 a 255)
+
+# --- Colores de mapa e interfaz ----------------------------------------------
+COLOR_PANEL = (40, 36, 32)
+COLOR_SUELO = (194, 170, 120)
+COLOR_LINEA = (180, 156, 108)
+COLOR_CAMPAMENTO = (120, 80, 50)
+COLOR_COCHIMI = (200, 60, 60)
+COLOR_AGUAJE = (60, 120, 200)
+COLOR_CARDON = (60, 140, 70)
+COLOR_DECORACION = (90, 120, 60)
+
+# --- Códigos de la matriz del mapa (18 filas x 24 columnas) ------------------
+CASILLA_BASE = 1         # Casa de Campaña (Base_nivel_nada.png)
+CASILLA_AGUAJE = 2       # Aguaje (agua)
+CASILLA_CARDON = 3       # Cardón / Árbol de pitaya (comida)
+CASILLA_PNJ = 4          # Cochimí inicial
+CASILLA_HIERBA = 5       # Decoración: hierba.png (32x32)
+CASILLA_ALICOCHE = 6     # Decoración: alicoche.png (32x32)
+CASILLA_CACTUS = 7       # Decoración: cactus.png (32x64)
+CASILLA_PALMA = 8        # Decoración: Palma.png (32x64)
+CASILLA_PALO_BLANCO = 9  # Decoración: palo_blanco.png (32x64)
+CASILLA_VENADO = 10      # Animal: venado_de_frente.png (32x32)
+
+SPRITES_DECORACION = {
+    CASILLA_HIERBA: ("Vegetacion/Decoracion/hierba.png", (32, 32)),
+    CASILLA_ALICOCHE: ("Vegetacion/Decoracion/alicoche.png", (32, 32)),
+    CASILLA_CACTUS: ("Vegetacion/Decoracion/cactus.png", (32, 64)),
+    CASILLA_PALMA: ("Vegetacion/Decoracion/Palma.png", (32, 64)),
+    CASILLA_PALO_BLANCO: ("Vegetacion/Decoracion/palo_blanco.png", (32, 64)),
+}
