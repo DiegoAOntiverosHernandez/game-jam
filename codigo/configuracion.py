@@ -21,7 +21,7 @@ ALTO_VENTANA = ALTO_MAPA                      # 576
 # --- Tamaño de sprites (píxeles) --------------------------------------------
 TAMANO_SPRITE_PNJ = (32, 32)           # también existen sprites de 32x64
 TAMANO_CARDON = (32, 64)               # 1x2 casillas para el árbol de pitaya
-TAMANO_CASA_CAMPANA = (96, 96)         # 3x3 casillas
+TAMANO_CASA_CAMPANA = (128, 128)         # 3x3 casillas
 
 # --- Tiempo -------------------------------------------------------------------
 SEGUNDOS_POR_DIA = 60                  # a velocidad x1 equivale a 60 s reales
