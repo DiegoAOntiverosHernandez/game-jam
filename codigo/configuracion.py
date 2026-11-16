@@ -20,6 +20,7 @@ ALTO_VENTANA = ALTO_MAPA                      # 576
 
 # --- Tamaño de sprites (píxeles) --------------------------------------------
 TAMANO_SPRITE_PNJ = (32, 32)           # también existen sprites de 32x64
+TAMANO_CARDON = (32, 64)               # 1x2 casillas para el árbol de pitaya
 TAMANO_CASA_CAMPANA = (96, 96)         # 3x3 casillas
 
 # --- Tiempo -------------------------------------------------------------------
@@ -40,6 +41,7 @@ PNJ_VELOCIDAD = 64
 COSTO_PNJ_PRIMERO = 20                 # de comida
 COSTO_PNJ_INCREMENTO = 10              # por cada PNJ adicional
 CARGA_POR_VIAJE = 5
+CARGA_POR_VIAJE_COMIDA = 3             # máximo de pitahayas por viaje para coincidir con los sprites
 SEGUNDOS_POR_UNIDAD_EXTRAIDA = 0.5     # tiempo para sacar 1 unidad de un recurso
 SEGUNDOS_POR_UNIDAD_DEPOSITADA = 0.5
 SEGUNDOS_INACTIVO_PARA_SENTARSE = 8    # tiempo sin hacer nada antes de sentarse
@@ -79,10 +81,10 @@ CARDON_SEGUNDOS_REGENERACION = 25      # +1 pitahaya cada 25 s
 CARDON_SEGUNDOS_RECUPERACION = 120     # si se vacía a 0
 CARDON_PITAHAYAS_RECUPERADAS = 3       # al terminar la recuperación
 
-# Sprite del cardón según pitahayas restantes (mínimo para cada nivel)
-CARDON_UMBRAL_LLENO = 7                # 7 a 10
-CARDON_UMBRAL_MEDIO = 4                # 4 a 6
-CARDON_UMBRAL_BAJO = 2                 # 2 a 3
+# Sprite del cardón según pitahayas restantes (coincide con viajes de 3: 10 -> 7 -> 4 -> 1 -> 0)
+CARDON_UMBRAL_LLENO = 8                # 8 a 10
+CARDON_UMBRAL_MEDIO = 5                # 5 a 7
+CARDON_UMBRAL_BAJO = 2                 # 2 a 4
 CARDON_UMBRAL_MUY_BAJO = 1             # 1; con 0 se muestra agotado
 
 # --- Fauna --------------------------------------------------------------------

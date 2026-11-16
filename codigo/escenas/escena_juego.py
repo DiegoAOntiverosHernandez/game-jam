@@ -50,7 +50,7 @@ MAPA_INICIAL = [
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 13
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 14
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 15
-    [ 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 16
+    [ 5, 6, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 16
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 17
 ]
 
@@ -109,9 +109,15 @@ class EscenaJuego:
                         ComponenteNodoRecurso("agua", cfg.AGUAJE_MAXIMO, cfg.AGUAJE_MAXIMO),
                     )
                 elif celda == cfg.CASILLA_CARDON:
+                    ancho, alto = cfg.TAMANO_CARDON
                     self.mundo.crear_entidad(
-                        ComponenteTransformacion(x, y),
-                        ComponenteRenderizado(t, t, cfg.COLOR_CARDON),
+                        ComponenteTransformacion(x, (fila + 1) * t - alto),
+                        ComponenteRenderizado(
+                            ancho,
+                            alto,
+                            cfg.COLOR_CARDON,
+                            sprite="Vegetacion/Planta de recolecion/Arbol_de_pitaya_lleno_de_7_a_10.png",
+                        ),
                         ComponenteNodoRecurso("comida", cfg.CARDON_MAXIMO, cfg.CARDON_MAXIMO),
                     )
                 elif celda in cfg.SPRITES_DECORACION:

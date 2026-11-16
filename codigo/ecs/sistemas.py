@@ -318,19 +318,24 @@ class SistemaRutinaTrabajador:
             self._terminar_recoleccion(rutina)
             return
 
+        carga_maxima = (
+            cfg.CARGA_POR_VIAJE_COMIDA
+            if nodo.tipo == "comida"
+            else cfg.CARGA_POR_VIAJE
+        )
         rutina.temporizador += dt
         while (
             rutina.temporizador >= cfg.SEGUNDOS_POR_UNIDAD_EXTRAIDA
-            and rutina.carga < cfg.CARGA_POR_VIAJE
+            and rutina.carga < carga_maxima
             and nodo.cantidad > 0
         ):
             rutina.temporizador -= cfg.SEGUNDOS_POR_UNIDAD_EXTRAIDA
             nodo.cantidad -= 1
             rutina.carga += 1
-            if nodo.tipo == "comida" and rutina.carga <= 3:
+            if nodo.tipo == "comida" and rutina.carga <= cfg.CARGA_POR_VIAJE_COMIDA:
                 reproducir_sonido("sonidos ambientales/recojer_fruta.mp3")
 
-        if rutina.carga >= cfg.CARGA_POR_VIAJE or nodo.cantidad <= 0:
+        if rutina.carga >= carga_maxima or nodo.cantidad <= 0:
             self._terminar_recoleccion(rutina)
 
     def _terminar_recoleccion(self, rutina):
@@ -527,6 +532,18 @@ class SistemaRenderizado:
         frente = "cochimie_M_frente.png" if es_mujer else "cochimie_h_frente.png"
         return f"{carpeta}/{frente}"
 
+    def _sprite_cardon(self, cantidad):
+        carpeta = "Vegetacion/Planta de recolecion"
+        if cantidad >= cfg.CARDON_UMBRAL_LLENO:
+            return f"{carpeta}/Arbol_de_pitaya_lleno_de_7_a_10.png"
+        if cantidad >= cfg.CARDON_UMBRAL_MEDIO:
+            return f"{carpeta}/Arbol_de_pitaya_medio_de_4_a_7.png"
+        if cantidad >= cfg.CARDON_UMBRAL_BAJO:
+            return f"{carpeta}/Arbol_de_pitaya_bajo_de_1_a_4.png"
+        if cantidad >= cfg.CARDON_UMBRAL_MUY_BAJO:
+            return f"{carpeta}/Arbol_de_pitaya_muy_bajo_de_1_a_0.png"
+        return f"{carpeta}/Arbol_de_pitaya_nada_de_0.png"
+
     def dibujar(self, mundo, pantalla):
         # Se dibuja en orden de creación: la Casa queda debajo de los PNJ
         for id_entidad, (pos, imagen) in mundo.entidades_con(
@@ -534,11 +551,18 @@ class SistemaRenderizado:
         ):
             rect = pygame.Rect(pos.x, pos.y, imagen.ancho, imagen.alto)
             rutina = mundo.obtener(id_entidad, ComponenteRutinaTrabajador)
+            nodo = mundo.obtener(id_entidad, ComponenteNodoRecurso)
             sel = mundo.obtener(id_entidad, ComponenteSeleccionable)
             seleccionado = sel is not None and sel.seleccionado
 
             if rutina is not None:
                 ruta_sprite = self._sprite_pnj(rutina, seleccionado)
+                superficie = cargar_imagen(
+                    ruta_sprite, (imagen.ancho, imagen.alto), imagen.color
+                )
+                pantalla.blit(superficie, rect.topleft)
+            elif nodo is not None and nodo.tipo == "comida":
+                ruta_sprite = self._sprite_cardon(nodo.cantidad)
                 superficie = cargar_imagen(
                     ruta_sprite, (imagen.ancho, imagen.alto), imagen.color
                 )
@@ -555,9 +579,8 @@ class SistemaRenderizado:
                 pygame.draw.rect(pantalla, (255, 255, 255), rect, 2)
 
             # Textos de depuración: cantidad del recurso y carga del PNJ
-            nodo = mundo.obtener(id_entidad, ComponenteNodoRecurso)
             if nodo is not None:
-                self._texto(pantalla, str(nodo.cantidad), rect.center)
+                self._texto(pantalla, str(nodo.cantidad), (rect.centerx, rect.bottom - 10))
 
             if rutina is not None:
                 if rutina.carga > 0:
