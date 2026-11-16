@@ -25,39 +25,43 @@ from codigo.ecs.sistemas import (
     SistemaNecesidades,
     SistemaRenderizado,
     SistemaRutinaTrabajador,
+    SistemaRegeneracionRecursos,
+    SistemaAnimales,
+    crear_venado,
 )
 from codigo.gestor_recursos import iniciar_ambiente, iniciar_ost, reproducir_sonido
 
 # Matriz de 18 filas x 24 columnas (cada posición es una casilla de 32x32 px)
 # Códigos en configuracion.py:
-#   0=Vacío, 1=Base, 2=Aguaje, 3=Cardón, 4=PNJ, 5=Hierba,
-#   6=Alicoche, 7=Cactus, 8=Palma, 9=Palo blanco, 10=Venado
+#   1=Base, 4=PNJ inicial, 5=Hierba, 6=Alicoche, 7=Cactus, 8=Palma, 9=Palo blanco
+# Los aguajes (2), cardones (3) y venados (10) ya NO se leen de aquí:
+# se colocan al azar en cada partida (ver _cargar_mapa_desde_matriz).
 MAPA_INICIAL = [
     # 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 0
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 0, 9, 0],  # fila 1
     [ 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 2
-    [ 0, 0, 0, 8, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 3
-    [ 0, 0, 0, 0, 2, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 4 (Aguaje en col 4)
-    [ 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0],  # fila 5 (Cardón en col 18)
+    [ 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 3
+    [ 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 4
+    [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 5
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 6
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 7
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 8 (Base en col 11)
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 9
-    [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 10 (PNJ en col 10 y 13)
+    [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 10
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 11
-    [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 12
+    [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 12 (PNJ en col 11 y 13)
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 13
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 14
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 15
-    [ 5, 6, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 16
+    [ 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 16
     [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # fila 17
 ]
-
 
 class EscenaJuego:
     def __init__(self, pantalla):
         self.pantalla = pantalla
+        self.siguiente = None
         self.mundo = Mundo()
         self.sistema_entrada = SistemaEntradaYSeleccion()
         self.sistema_renderizado = SistemaRenderizado()
@@ -66,6 +70,8 @@ class EscenaJuego:
         self.mundo.agregar_sistema(SistemaRutinaTrabajador())
         self.mundo.agregar_sistema(SistemaNecesidades())
         self.mundo.agregar_sistema(SistemaCicloDia())
+        self.mundo.agregar_sistema(SistemaRegeneracionRecursos())
+        self.mundo.agregar_sistema(SistemaAnimales())
 
         self.reloj = ComponenteReloj(
             segundos_dia=cfg.HORA_INICIAL / cfg.HORAS_POR_DIA * cfg.SEGUNDOS_POR_DIA
@@ -86,7 +92,11 @@ class EscenaJuego:
     def _cargar_mapa_desde_matriz(self):
         t = cfg.TAMANO_CASILLA
         posiciones_pnj = []
+        ocupados = []  # rectángulos ya usados, para que nada se sobreponga
+        cantidad = {"aguaje": 0, "cardon": 0, "venado": 0}
 
+        # 1) Elementos fijos (Casa, decoración, PNJ). Aguajes, cardones y
+        #    venados solo se cuentan: su lugar se sortea en el paso 2.
         for fila, valores_fila in enumerate(MAPA_INICIAL):
             for columna, celda in enumerate(valores_fila):
                 x, y = columna * t, fila * t
@@ -102,24 +112,13 @@ class EscenaJuego:
                             cfg.RESERVA_INICIAL_AGUA, cfg.RESERVA_INICIAL_COMIDA
                         ),
                     )
+                    ocupados.append(pygame.Rect(x, y, *cfg.TAMANO_CASA_CAMPANA))
                 elif celda == cfg.CASILLA_AGUAJE:
-                    self.mundo.crear_entidad(
-                        ComponenteTransformacion(x, y),
-                        ComponenteRenderizado(t, t, cfg.COLOR_AGUAJE),
-                        ComponenteNodoRecurso("agua", cfg.AGUAJE_MAXIMO, cfg.AGUAJE_MAXIMO),
-                    )
+                    cantidad["aguaje"] += 1
                 elif celda == cfg.CASILLA_CARDON:
-                    ancho, alto = cfg.TAMANO_CARDON
-                    self.mundo.crear_entidad(
-                        ComponenteTransformacion(x, (fila + 1) * t - alto),
-                        ComponenteRenderizado(
-                            ancho,
-                            alto,
-                            cfg.COLOR_CARDON,
-                            sprite="Vegetacion/Planta de recolecion/Arbol_de_pitaya_lleno_de_7_a_10.png",
-                        ),
-                        ComponenteNodoRecurso("comida", cfg.CARDON_MAXIMO, cfg.CARDON_MAXIMO),
-                    )
+                    cantidad["cardon"] += 1
+                elif celda == cfg.CASILLA_VENADO:
+                    cantidad["venado"] += 1
                 elif celda in cfg.SPRITES_DECORACION:
                     ruta_sprite, (ancho, alto) = cfg.SPRITES_DECORACION[celda]
                     self.mundo.crear_entidad(
@@ -128,19 +127,63 @@ class EscenaJuego:
                             ancho, alto, cfg.COLOR_DECORACION, sprite=ruta_sprite
                         ),
                     )
-                elif celda == cfg.CASILLA_VENADO:
-                    self.mundo.crear_entidad(
-                        ComponenteTransformacion(x, y),
-                        ComponenteRenderizado(
-                            t, t, cfg.COLOR_DECORACION, sprite="animales/venado_de_frente.png"
-                        ),
-                        ComponenteAnimal(),
-                    )
+                    ocupados.append(pygame.Rect(x, (fila + 1) * t - alto, ancho, alto))
                 elif celda == cfg.CASILLA_PNJ:
                     posiciones_pnj.append((x, y))
+                    ocupados.append(pygame.Rect(x, y, *cfg.TAMANO_SPRITE_PNJ))
 
+        # 2) Aguajes, cardones y venados en lugares al azar, sin sobreponerse
+        for _ in range(random.randint(cfg.AGUAJES_MINIMO, cfg.AGUAJES_MAXIMO)):
+            lugar = self._lugar_libre(t, t, ocupados)
+            if lugar is not None:
+                self.mundo.crear_entidad(
+                    ComponenteTransformacion(*lugar),
+                    ComponenteRenderizado(t, t, cfg.COLOR_AGUAJE),
+                    ComponenteNodoRecurso("agua", cfg.AGUAJE_MAXIMO, cfg.AGUAJE_MAXIMO),
+                )
+
+        ancho_cardon, alto_cardon = cfg.TAMANO_CARDON
+        for _ in range(random.randint(cfg.CARDONES_MINIMO, cfg.CARDONES_MAXIMO)):
+            lugar = self._lugar_libre(ancho_cardon, alto_cardon, ocupados)
+            if lugar is not None:
+                self.mundo.crear_entidad(
+                    ComponenteTransformacion(*lugar),
+                    ComponenteRenderizado(
+                        ancho_cardon,
+                        alto_cardon,
+                        cfg.COLOR_CARDON,
+                        sprite="Vegetacion/Planta de recolecion/Arbol_de_pitaya_lleno_de_7_a_10.png",
+                    ),
+                    ComponenteNodoRecurso("comida", cfg.CARDON_MAXIMO, cfg.CARDON_MAXIMO),
+                )
+
+        for _ in range(cfg.VENADOS_INICIALES):
+            lugar = self._lugar_libre(t, t, ocupados)
+            if lugar is not None:
+                crear_venado(self.mundo, *lugar)
+
+        # 3) Los PNJ iniciales se crean al final para dibujarse encima
         for x, y in posiciones_pnj:
             self._crear_cochimi(x, y)
+
+    def _lugar_libre(self, ancho, alto, ocupados, intentos=300):
+        """Busca un rectángulo libre dentro del mapa. Devuelve (x, y) o None."""
+        t = cfg.TAMANO_CASILLA
+        margen = t // 2  # separación mínima entre objetos
+        limite = pygame.Rect(0, 0, cfg.ANCHO_MAPA, cfg.ALTO_MAPA)
+        for _ in range(intentos):
+            columna = random.randint(0, cfg.COLUMNAS_MAPA - 1)
+            fila = random.randint(0, cfg.FILAS_MAPA - 1)
+            # Los objetos altos se anclan por la base, igual que en la matriz
+            rect = pygame.Rect(columna * t, (fila + 1) * t - alto, ancho, alto)
+            if not limite.contains(rect):
+                continue
+            if rect.inflate(margen * 2, margen * 2).collidelist(ocupados) != -1:
+                continue
+            ocupados.append(rect)
+            return rect.x, rect.y
+        print("[mapa] No se encontró lugar libre para un objeto")
+        return None
 
     def _crear_cochimi(self, x, y):
         genero = random.choice(("h", "m"))

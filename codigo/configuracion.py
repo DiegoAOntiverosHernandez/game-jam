@@ -8,6 +8,7 @@ Los valores de balance son un punto de partida y se afinan jugando.
 # --- Ventana y mapa ---------------------------------------------------------
 TITULO_VENTANA = "El Último Aguaje: Legado Cochimí"
 FPS = 60
+SEGUNDOS_CARGA_SIMULADA = 6            # lo que tarda en llenarse la barra de carga
 
 TAMANO_CASILLA = 32            # píxeles por casilla
 COLUMNAS_MAPA = 24
@@ -61,21 +62,21 @@ SEGUNDOS_CUERPO_VISIBLE = 3            # cuánto se ve el PNJ muerto antes de de
 # --- Reservas de la Casa de Campaña -------------------------------------------
 RESERVA_INICIAL_AGUA = 30
 RESERVA_INICIAL_COMIDA = 30
-RESERVA_MAXIMA = 300                   # de cada recurso
+RESERVA_MAXIMA = 600                   # de cada recurso
 
 # El sprite de la Casa de Campaña depende del menor de los dos niveles
 NIVEL_RESERVA_ALTO = 200               # más de 200
 NIVEL_RESERVA_MEDIO = 100              # de 100 a 200; de 1 a 99 es bajo; 0 es nada
 
 # --- Aguajes ------------------------------------------------------------------
-CANTIDAD_AGUAJES = 3
+#CANTIDAD_AGUAJES = 3
 AGUAJE_MAXIMO = 10                     # botes
-AGUAJE_SEGUNDOS_REGENERACION = 15      # +1 bote cada 15 s
+AGUAJE_SEGUNDOS_REGENERACION = 8      # +1 bote cada 15 s
 AGUAJE_SEGUNDOS_RECUPERACION = 120     # si se vacía a 0
 AGUAJE_BOTES_RECUPERADOS = 5           # al terminar la recuperación
 
 # --- Cardones -----------------------------------------------------------------
-CANTIDAD_CARDONES = 6
+#CANTIDAD_CARDONES = 6
 CARDON_MAXIMO = 10                     # pitahayas
 CARDON_SEGUNDOS_REGENERACION = 25      # +1 pitahaya cada 25 s
 CARDON_SEGUNDOS_RECUPERACION = 120     # si se vacía a 0
@@ -86,11 +87,6 @@ CARDON_UMBRAL_LLENO = 8                # 8 a 10
 CARDON_UMBRAL_MEDIO = 5                # 5 a 7
 CARDON_UMBRAL_BAJO = 2                 # 2 a 4
 CARDON_UMBRAL_MUY_BAJO = 1             # 1; con 0 se muestra agotado
-
-# --- Fauna --------------------------------------------------------------------
-FAUNA_INICIAL = 2
-FAUNA_MAXIMA = 12
-FAUNA_SEGUNDOS_REPRODUCCION = 30
 
 # --- Ciclo de luz (día / noche) ---------------------------------------------
 HORA_INICIAL = 8                       # el juego arranca a las 08:00
@@ -130,3 +126,21 @@ SPRITES_DECORACION = {
     CASILLA_PALMA: ("Vegetacion/Decoracion/Palma.png", (32, 64)),
     CASILLA_PALO_BLANCO: ("Vegetacion/Decoracion/palo_blanco.png", (32, 64)),
 }
+
+# --- Generación por partida ---------------------------------------------------
+AGUAJES_MINIMO = 4
+AGUAJES_MAXIMO = 6
+CARDONES_MINIMO = 4
+CARDONES_MAXIMO = 6
+
+# --- Venados (fauna) ----------------------------------------------------------
+VENADOS_INICIALES = 3
+VENADOS_MAXIMOS = 8
+VENADOS_MINIMO_PARA_REPRODUCIRSE = 2   # con menos de 2 vivos ya no nacen más
+VENADO_SEGUNDOS_REPRODUCCION = 120     # tiempo para que nazca uno nuevo
+VENADO_COMIDA = 10                     # comida que deja al morir
+VENADO_GOLPES_PARA_MORIR = 5
+VENADO_VELOCIDAD_PASEO = 24            # píxeles por segundo
+VENADO_VELOCIDAD_HUIDA = 96            # 1.5 veces la velocidad del PNJ
+VENADO_SEGUNDOS_HUIDA = 2.0            # tiempo que corre tras cada golpe
+SEGUNDOS_ENTRE_GOLPES = 0.5

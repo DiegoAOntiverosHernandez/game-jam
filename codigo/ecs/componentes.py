@@ -13,6 +13,7 @@ ESTADO_HAMBRIENTO = "hambriento"       # parado, con el ícono, esperando el cli
 ESTADO_YENDO_A_COMER = "yendo_a_comer"
 ESTADO_COMIENDO = "comiendo"
 ESTADO_MUERTO = "muerto"
+ESTADO_CAZANDO = "cazando"
 
 @dataclass
 class ComponenteTransformacion:
@@ -45,6 +46,9 @@ class ComponenteNodoRecurso:
     tipo: str         # "agua" o "comida"
     cantidad: int
     maximo: int
+    segundos_regeneracion: float = 0.0   # avance hacia la próxima unidad
+    agotado: bool = False                # se vació a 0 y está en recuperación
+    segundos_recuperacion: float = 0.0   # avance de la recuperación larga
 
 
 @dataclass
@@ -66,6 +70,11 @@ class ComponenteRutinaTrabajador:
 @dataclass
 class ComponenteAnimal:
     vivo: bool = True
+    golpes: int = 0                      # golpes recibidos
+    segundos_huida: float = 0.0          # tiempo que le queda corriendo
+    direccion: tuple = (0.0, 0.0)        # (0, 0) = parado
+    segundos_paseo: float = 0.0          # tiempo hasta cambiar de rumbo
+    mirando_izquierda: bool = False
 
 @dataclass
 class ComponenteReloj:

@@ -1,6 +1,6 @@
 """Sistemas: la lógica que procesa los componentes."""
 import math
-
+import random
 import pygame
 
 from codigo import configuracion as cfg
@@ -21,6 +21,7 @@ from codigo.ecs.componentes import (
     ESTADO_YENDO_A_COMER,
     ESTADO_YENDO_AL_RECURSO,
     ESTADO_MUERTO,
+    ESTADO_CAZANDO,
     ComponenteAlmacen,
     ComponenteAnimal,
     ComponenteNecesidades,
@@ -38,6 +39,7 @@ ESTADOS_TRABAJO = (
     ESTADO_RECOLECTANDO,
     ESTADO_YENDO_A_CASA,
     ESTADO_DEPOSITANDO,
+    ESTADO_CAZANDO,
 )
 
 
@@ -46,6 +48,16 @@ def rect_icono_hambre(pos, imagen):
     lado = cfg.TAMANO_ICONO_HAMBRE
     return pygame.Rect(pos.x + imagen.ancho / 2 - lado / 2, pos.y - lado - 4, lado, lado)
 
+def crear_venado(mundo, x, y):
+    """Crea un venado en (x, y) y devuelve su id."""
+    t = cfg.TAMANO_CASILLA
+    return mundo.crear_entidad(
+        ComponenteTransformacion(x, y),
+        ComponenteRenderizado(
+            t, t, cfg.COLOR_DECORACION, sprite="animales/venado_de_frente.png"
+        ),
+        ComponenteAnimal(),
+    )
 
 def _reproducir_voz_pnj(rutina, accion):
     es_mujer = rutina.genero == "m"
@@ -115,8 +127,12 @@ class SistemaEntradaYSeleccion:
             return
 
         if mundo.obtener(id_clic, ComponenteAnimal) is not None:
-            rutina.destino = evento.pos
-            rutina.estado = ESTADO_MOVIENDOSE
+            if rutina.carga > 0:
+                return  # primero debe depositar lo que lleva
+            rutina.objetivo = id_clic
+            rutina.destino = None
+            rutina.temporizador = 0.0
+            rutina.estado = ESTADO_CAZANDO
             if rutina.genero == "h":
                 _reproducir_voz_pnj(rutina, "animal")
             else:
@@ -224,6 +240,8 @@ class SistemaRutinaTrabajador:
                 self._ir_a_comer(mundo, pos, imagen, rutina, necesidades, dt)
             elif rutina.estado == ESTADO_COMIENDO:
                 self._comer(rutina, necesidades, dt)
+            elif rutina.estado == ESTADO_CAZANDO:
+                self._cazar(mundo, pos, imagen, rutina, necesidades, dt)
 
     def _verificar_vista_animal(self, mundo, pos, imagen, rutina):
         """Si un PNJ hombre se acerca a ver un animal, dice somus_mover1.wav."""
@@ -419,6 +437,42 @@ class SistemaRutinaTrabajador:
         else:
             rutina.estado = necesidades.estado_previo
 
+    def _cazar(self, mundo, pos, imagen, rutina, necesidades, dt):
+        id_animal = rutina.objetivo
+        animal = mundo.obtener(id_animal, ComponenteAnimal) if id_animal is not None else None
+        pos_a = mundo.obtener(id_animal, ComponenteTransformacion) if id_animal is not None else None
+        img_a = mundo.obtener(id_animal, ComponenteRenderizado) if id_animal is not None else None
+        if animal is None or pos_a is None or img_a is None:
+            rutina.objetivo = None
+            rutina.estado = ESTADO_INACTIVO  # otro PNJ lo cazó o ya no existe
+            return
+
+        rutina.temporizador = max(0.0, rutina.temporizador - dt)  # enfriamiento
+        if not self._mover_hacia(mundo, pos, imagen, id_animal, dt, rutina):
+            return  # todavía lo persigue
+        if rutina.temporizador > 0:
+            return
+
+        # Golpe: el venado huye en dirección contraria al cazador
+        animal.golpes += 1
+        rutina.temporizador = cfg.SEGUNDOS_ENTRE_GOLPES
+        if animal.golpes >= cfg.VENADO_GOLPES_PARA_MORIR:
+            mundo.eliminar_entidad(id_animal)
+            rutina.objetivo = None
+            rutina.carga = cfg.VENADO_COMIDA  # recoge toda la carne de golpe
+            rutina.tipo_carga = "comida"
+            if rutina.casa is None:
+                rutina.casa = necesidades.casa
+            rutina.estado = ESTADO_YENDO_A_CASA  # y la lleva sola al almacén
+            return
+
+        dx = (pos_a.x + img_a.ancho / 2) - (pos.x + imagen.ancho / 2)
+        dy = (pos_a.y + img_a.alto / 2) - (pos.y + imagen.alto / 2)
+        distancia = math.hypot(dx, dy) or 1.0
+        animal.direccion = (dx / distancia, dy / distancia)
+        animal.segundos_huida = cfg.VENADO_SEGUNDOS_HUIDA
+
+
 class SistemaCicloDia:
     """Reloj global: avanza los días según los segundos de juego."""
 
@@ -470,6 +524,108 @@ class SistemaNecesidades:
         sel = mundo.obtener(id_entidad, ComponenteSeleccionable)
         if sel is not None:
             sel.seleccionado = False
+
+class SistemaRegeneracionRecursos:
+    """Aguajes y cardones regeneran de a poco; si se vacían, tardan mucho más."""
+
+    def actualizar(self, mundo, dt):
+        for _, (nodo,) in mundo.entidades_con(ComponenteNodoRecurso):
+            if nodo.tipo == "agua":
+                cada = cfg.AGUAJE_SEGUNDOS_REGENERACION
+                espera = cfg.AGUAJE_SEGUNDOS_RECUPERACION
+                al_recuperar = cfg.AGUAJE_BOTES_RECUPERADOS
+            else:
+                cada = cfg.CARDON_SEGUNDOS_REGENERACION
+                espera = cfg.CARDON_SEGUNDOS_RECUPERACION
+                al_recuperar = cfg.CARDON_PITAHAYAS_RECUPERADAS
+
+            if nodo.cantidad <= 0 and not nodo.agotado:
+                nodo.agotado = True              # castigo: se agotó por completo
+                nodo.segundos_recuperacion = 0.0
+
+            if nodo.agotado:
+                nodo.segundos_recuperacion += dt
+                if nodo.segundos_recuperacion >= espera:
+                    nodo.agotado = False
+                    nodo.cantidad = min(nodo.maximo, al_recuperar)
+                    nodo.segundos_regeneracion = 0.0
+                continue
+
+            if nodo.cantidad < nodo.maximo:
+                nodo.segundos_regeneracion += dt
+                while nodo.segundos_regeneracion >= cada and nodo.cantidad < nodo.maximo:
+                    nodo.segundos_regeneracion -= cada
+                    nodo.cantidad += 1
+            else:
+                nodo.segundos_regeneracion = 0.0
+
+class SistemaAnimales:
+    """Venados: pasean, huyen al ser golpeados y se reproducen con 2 o más vivos."""
+
+    def __init__(self):
+        self.segundos_reproduccion = 0.0
+
+    def actualizar(self, mundo, dt):
+        venados = list(
+            mundo.entidades_con(
+                ComponenteTransformacion, ComponenteRenderizado, ComponenteAnimal
+            )
+        )
+        for _, (pos, imagen, animal) in venados:
+            self._mover(pos, imagen, animal, dt)
+        self._reproducir(mundo, venados, dt)
+
+    def _mover(self, pos, imagen, animal, dt):
+        if animal.segundos_huida > 0:
+            animal.segundos_huida -= dt
+            velocidad = cfg.VENADO_VELOCIDAD_HUIDA
+        else:
+            animal.segundos_paseo -= dt
+            if animal.segundos_paseo <= 0:
+                animal.segundos_paseo = random.uniform(2.0, 5.0)
+                if random.random() < 0.4:
+                    animal.direccion = (0.0, 0.0)  # se queda quieto un rato
+                else:
+                    angulo = random.uniform(0, 2 * math.pi)
+                    animal.direccion = (math.cos(angulo), math.sin(angulo))
+            velocidad = cfg.VENADO_VELOCIDAD_PASEO
+
+        dx, dy = animal.direccion
+        if dx == 0.0 and dy == 0.0:
+            return
+        nuevo_x = pos.x + dx * velocidad * dt
+        nuevo_y = pos.y + dy * velocidad * dt
+
+        # Rebota en los bordes del mapa para no quedarse atorado
+        max_x = cfg.ANCHO_MAPA - imagen.ancho
+        max_y = cfg.ALTO_MAPA - imagen.alto
+        if nuevo_x < 0 or nuevo_x > max_x:
+            dx = -dx
+        if nuevo_y < 0 or nuevo_y > max_y:
+            dy = -dy
+        animal.direccion = (dx, dy)
+        pos.x = max(0, min(max_x, nuevo_x))
+        pos.y = max(0, min(max_y, nuevo_y))
+        if abs(dx) > 0.2:
+            animal.mirando_izquierda = dx < 0
+
+    def _reproducir(self, mundo, venados, dt):
+        vivos = len(venados)
+        if not (cfg.VENADOS_MINIMO_PARA_REPRODUCIRSE <= vivos < cfg.VENADOS_MAXIMOS):
+            self.segundos_reproduccion = 0.0  # con 0 o 1 vivos ya no se recupera
+            return
+        self.segundos_reproduccion += dt
+        if self.segundos_reproduccion < cfg.VENADO_SEGUNDOS_REPRODUCCION:
+            return
+        self.segundos_reproduccion = 0.0
+
+        # La cría nace cerca de un venado cualquiera
+        _, (pos, imagen, _animal) = random.choice(venados)
+        x = pos.x + random.uniform(-cfg.TAMANO_CASILLA, cfg.TAMANO_CASILLA)
+        y = pos.y + random.uniform(-cfg.TAMANO_CASILLA, cfg.TAMANO_CASILLA)
+        x = max(0, min(cfg.ANCHO_MAPA - imagen.ancho, x))
+        y = max(0, min(cfg.ALTO_MAPA - imagen.alto, y))
+        crear_venado(mundo, x, y)
 
 class SistemaRenderizado:
     def __init__(self):
@@ -552,6 +708,7 @@ class SistemaRenderizado:
             rect = pygame.Rect(pos.x, pos.y, imagen.ancho, imagen.alto)
             rutina = mundo.obtener(id_entidad, ComponenteRutinaTrabajador)
             nodo = mundo.obtener(id_entidad, ComponenteNodoRecurso)
+            animal = mundo.obtener(id_entidad, ComponenteAnimal)   # <- línea nueva
             sel = mundo.obtener(id_entidad, ComponenteSeleccionable)
             seleccionado = sel is not None and sel.seleccionado
 
@@ -563,6 +720,12 @@ class SistemaRenderizado:
                 pantalla.blit(superficie, rect.topleft)
             elif nodo is not None and nodo.tipo == "comida":
                 ruta_sprite = self._sprite_cardon(nodo.cantidad)
+                superficie = cargar_imagen(
+                    ruta_sprite, (imagen.ancho, imagen.alto), imagen.color
+                )
+                pantalla.blit(superficie, rect.topleft)
+            elif animal is not None:                                # <- rama nueva
+                ruta_sprite = self._sprite_venado(animal)
                 superficie = cargar_imagen(
                     ruta_sprite, (imagen.ancho, imagen.alto), imagen.color
                 )
@@ -582,6 +745,10 @@ class SistemaRenderizado:
             if nodo is not None:
                 self._texto(pantalla, str(nodo.cantidad), (rect.centerx, rect.bottom - 10))
 
+            if animal is not None and animal.golpes > 0:            # <- bloque nuevo
+                restantes = cfg.VENADO_GOLPES_PARA_MORIR - animal.golpes
+                self._texto(pantalla, str(restantes), (rect.centerx, rect.top - 6))
+
             if rutina is not None:
                 if rutina.carga > 0:
                     self._texto(pantalla, str(rutina.carga), (rect.right + 10, rect.top + 8))
@@ -598,6 +765,11 @@ class SistemaRenderizado:
         imagen = self.fuente.render(texto, True, (255, 255, 255))
         pantalla.blit(imagen, imagen.get_rect(center=centro))
 
+    def _sprite_venado(self, animal):
+        if animal.direccion == (0.0, 0.0):
+            return "animales/venado_de_frente.png"
+        lado = "izquierdo" if animal.mirando_izquierda else "derecho"
+        return f"animales/venado_de_lado_{lado}.png"
 
 class SistemaInterfaz:
     """Panel derecho (reservas, reloj, velocidades, crear PNJ) y menús de pausa/audio."""
