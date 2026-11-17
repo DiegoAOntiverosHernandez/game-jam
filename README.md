@@ -54,6 +54,22 @@ game-jam/
 ```
 
 ---
-pip install -r requirements.txt
+## Ejecutar desde el código fuente
+
+```powershell
+python -m pip install -r requirements.txt
 python main.py
 ```
+
+## Crear un ejecutable en Windows
+
+Desde la carpeta del proyecto, instala PyInstaller y las dependencias:
+
+```powershell
+python -m pip install -r requirements.txt pyinstaller
+```
+
+Después ejecuta `crear_ejecutable.bat`. El programa incluirá la carpeta `recursos`
+y el logo como icono de la ventana y del ejecutable. El archivo quedará en
+`dist\El Respiro de la Sierra.exe`. Para distribuirlo, comparte ese ejecutable;
+no necesita que la otra persona instale Python.
