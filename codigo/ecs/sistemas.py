@@ -955,19 +955,9 @@ class SistemaInterfaz:
             cx - 100, self.rect_caja_audio.bottom - 56, 200, 40
         )
 
-        # Pantalla de Fin del Juego
-        self.rect_caja_fin = pygame.Rect(cx - 250, cy - 170, 500, 340)
-        self.btn_reiniciar_fin = pygame.Rect(cx - 140, cy + 20, 280, 48)
-        self.btn_salir_fin = pygame.Rect(cx - 140, cy + 84, 280, 48)
-
     def manejar_evento(self, escena, evento):
         """Devuelve True si el evento fue consumido por la interfaz o la pausa."""
         if escena.fin_del_juego:
-            if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
-                if self.btn_reiniciar_fin.collidepoint(evento.pos):
-                    escena.siguiente = "juego"
-                elif self.btn_salir_fin.collidepoint(evento.pos):
-                    escena.siguiente = "menu"  # cuando haya menú llevará al menú; si no, cierra
             return True
 
         if evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE:
@@ -1098,68 +1088,11 @@ class SistemaInterfaz:
             color_borde=(30, 15, 8),
         )
 
-        if escena.fin_del_juego:
-            self._dibujar_menu_fin_juego(escena, pantalla)
-        elif self.pausado:
+        if self.pausado:
             if self.en_menu_audio:
                 self._dibujar_menu_audio(pantalla)
             else:
                 self._dibujar_menu_pausa(pantalla)
-
-    def _dibujar_menu_fin_juego(self, escena, pantalla):
-        pygame.draw.rect(pantalla, (235, 221, 190), self.rect_caja_fin, border_radius=8)
-        pygame.draw.rect(pantalla, (130, 65, 10), self.rect_caja_fin, 3, border_radius=8)
-
-        dibujar_texto_retro(
-            pantalla,
-            "FIN DEL JUEGO",
-            self.fuente_titulo,
-            (210, 45, 35),
-            centro=(self.rect_caja_fin.centerx, self.rect_caja_fin.y + 52),
-            offset_sombra=(3, 3),
-            color_sombra=(50, 12, 10),
-            con_borde=True,
-            color_borde=(15, 8, 8),
-        )
-
-        # Partir el mensaje en líneas si es largo
-        palabras = escena.mensaje_fin_juego.split()
-        lineas, actual = [], ""
-        for p in palabras:
-            prueba = f"{actual} {p}".strip()
-            if self.fuente_boton.size(prueba)[0] <= self.rect_caja_fin.width - 40:
-                actual = prueba
-            else:
-                lineas.append(actual)
-                actual = p
-        if actual:
-            lineas.append(actual)
-
-        y_txt = self.rect_caja_fin.y + 105
-        for linea in lineas:
-            img_l = self.fuente_boton.render(linea, True, (30, 20, 10))
-            pantalla.blit(img_l, img_l.get_rect(center=(self.rect_caja_fin.centerx, y_txt)))
-            y_txt += 28
-
-        pos_mouse = pygame.mouse.get_pos()
-        for rect_btn, etiqueta in (
-            (self.btn_reiniciar_fin, "VOLVER A JUGAR"),
-            (self.btn_salir_fin, "SALIR AL MENÚ"),
-        ):
-            hover = rect_btn.collidepoint(pos_mouse)
-            color_fondo = (175, 95, 25) if hover else (138, 71, 14)
-            pygame.draw.rect(pantalla, color_fondo, rect_btn, border_radius=6)
-            pygame.draw.rect(pantalla, (235, 221, 190), rect_btn, 1, border_radius=6)
-            dibujar_texto_retro(
-                pantalla,
-                etiqueta,
-                self.fuente_boton,
-                (255, 255, 255),
-                centro=rect_btn.center,
-                offset_sombra=(2, 2),
-                con_borde=True,
-                color_borde=(30, 15, 8),
-            )
 
     def _dibujar_menu_pausa(self, pantalla):
         pygame.draw.rect(pantalla, (235, 221, 190), self.rect_caja_pausa, border_radius=8)

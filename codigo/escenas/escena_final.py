@@ -38,17 +38,21 @@ COLOR_BTN_VICTORIA_HOVER = (60, 145, 100)
 
 def partir_texto(texto, fuente, ancho_maximo):
     """Divide un texto en varias líneas sin cortar palabras."""
-    palabras = texto.split()
-    lineas, actual = [], ""
-    for p in palabras:
-        prueba = f"{actual} {p}".strip()
-        if fuente.size(prueba)[0] <= ancho_maximo:
-            actual = prueba
-        else:
+    parrafos = texto.split("\n\n")
+    lineas = []
+    for indice, parrafo in enumerate(parrafos):
+        actual = ""
+        for palabra in parrafo.split():
+            prueba = f"{actual} {palabra}".strip()
+            if fuente.size(prueba)[0] <= ancho_maximo:
+                actual = prueba
+            else:
+                lineas.append(actual)
+                actual = palabra
+        if actual:
             lineas.append(actual)
-            actual = p
-    if actual:
-        lineas.append(actual)
+        if indice < len(parrafos) - 1:
+            lineas.append("")
     return lineas
 
 
@@ -128,7 +132,9 @@ class EscenaFinal:
         # Fuentes (Títulos, subtítulos, estadísticas y botones en estilo retro pixel art)
         self.fuente_titulo = cargar_fuente(34, retro=True)
         self.fuente_subtitulo = cargar_fuente(13, retro=True)
-        self.fuente_narrativa = pygame.font.SysFont("arial", 20)
+        self.fuente_narrativa = pygame.font.SysFont(
+            "arial", 14 if self.tipo == "victoria" else 20
+        )
         self.fuente_stats = cargar_fuente(11, retro=True)
         self.fuente_boton = cargar_fuente(12, retro=True)
         self.fuente_skip = cargar_fuente(10, retro=True)
@@ -155,68 +161,42 @@ class EscenaFinal:
         self._iniciar_audio()
 
     def _configurar_narrativa(self):
-        """Define títulos, subtítulos y descripciones temáticas exactas."""
         if self.tipo == "victoria":
             self.titulo_principal = "¡VICTORIA!"
+            self.mensaje = (
+                "Lo lograste porque cuidaste lo que tenías: repartiste el trabajo, "
+                "dejaste que aguajes, plantas y venados se recuperaran y guardaste para "
+                "los días difíciles. Así vivieron durante siglos los pueblos de la "
+                "península: tomando solo lo que el desierto podía devolver.\n\n"
+                "Hoy, en Baja California Sur, el agua de las ciudades sale de acuíferos "
+                "que se sobreexplotan: se extrae más de lo que la lluvia repone. "
+                "A diferencia del juego, ahí no se regenera cada 8 segundos."
+            )
             if self.motivo == "recursos_full_30":
                 self.subtitulo = "RECURSOS LLENOS A LOS 30 DÍAS"
-                if not self.mensaje:
-                    self.mensaje = (
-                        "¡Un triunfo legendario! Lograste llenar los almacenes con reservas "
-                        "totales de agua y comida al llegar el día 30. La tribu Cochimí no solo "
-                        "sobrevivió a la gran sequía, sino que florecerá durante generaciones."
-                    )
             elif self.motivo == "agua_sin_comida_30":
                 self.subtitulo = "EL MILAGRO DEL AGUAJE (DÍA 30)"
-                if not self.mensaje:
-                    self.mensaje = (
-                        "Aunque las provisiones de comida se agotaron, conservaste agua guardada "
-                        "alcanzando los 30 días. En la sierra sudcaliforniana, ¡el agua es vida! "
-                        "Aferrada al aguaje sagrado, la tribu resistió y ve nacer un nuevo ciclo."
-                    )
             else:
                 self.subtitulo = "SUPERVIVENCIA COCHIMÍ (DÍA 30)"
-                if not self.mensaje:
-                    self.mensaje = (
-                        "¡Has alcanzado los 30 días! Supiste recolectar con respeto y sabiduría "
-                        "sin sobreexplotar la sierra. Con agua y sustento guardados, tu tribu ha "
-                        "vencido a la temporada más feroz del desierto."
-                    )
             self.etiqueta_btn_1 = "Volver al inicio"
             self.etiqueta_btn_2 = "Salir del juego"
         else:
             self.titulo_principal = "GAME OVER"
+            self.mensaje = (
+                "Tu tribu no alcanzó a reunir lo suficiente. Piensa qué pasó: "
+                "¿se agotó un aguaje? ¿Había demasiados cochimíes para tan poca agua? "
+                "¿Se cazaron todos los venados?\n\n"
+                "En el juego puedes volver a intentarlo. En la vida real, un acuífero "
+                "que se agota no se reinicia."
+            )
             if self.motivo == "sin_agua_con_comida_30":
                 self.subtitulo = "SIN AGUA GUARDADA A LOS 30 DÍAS"
-                if not self.mensaje:
-                    self.mensaje = (
-                        "El día 30 llegó con comida en los almacenes, pero el agua se agotó por "
-                        "completo. En el rigor de la sierra de Baja California Sur, ningún pueblo "
-                        "puede sobrevivir sin agua. La sed extinguió el campamento."
-                    )
             elif self.motivo == "recursos_agotados_30":
                 self.subtitulo = "RECURSOS AGOTADOS A LOS 30 DÍAS"
-                if not self.mensaje:
-                    self.mensaje = (
-                        "Al llegar el día 30, las reservas de agua y comida llegaron a cero. "
-                        "La sequía extrema superó las fuerzas del campamento y la tribu no "
-                        "pudo resistir más tiempo."
-                    )
             elif self.motivo == "pnj_muertos":
                 self.subtitulo = "TODOS LOS POBLADORES HAN CAÍDO"
-                if not self.mensaje:
-                    self.mensaje = (
-                        "Ningún habitante cochimí logró sobrevivir. Sin guardianes que atiendan el "
-                        "aguaje ni recolecten del cardón, el asentamiento quedó en silencio "
-                        f"antes de culminar los 30 días (Día {self.dia})."
-                    )
             else:
                 self.subtitulo = "FIN DEL JUEGO"
-                if not self.mensaje:
-                    self.mensaje = (
-                        "Las reservas se agotaron de forma irreversible antes de alcanzar los 30 "
-                        f"días (Día {self.dia}). La tribu no logró superar la prueba de la sierra."
-                    )
             self.etiqueta_btn_1 = "Volver al menú principal"
             self.etiqueta_btn_2 = "Salir del juego"
 
@@ -465,8 +445,9 @@ class EscenaFinal:
         y_txt = caja_rect.y + 24
         alto_linea = self.fuente_narrativa.get_linesize() + 4
         for linea in lineas:
-            txt_render = self.fuente_narrativa.render(linea, True, color_texto)
-            p.blit(txt_render, txt_render.get_rect(center=(cx, y_txt + alto_linea // 2)))
+            if linea:
+                txt_render = self.fuente_narrativa.render(linea, True, color_texto)
+                p.blit(txt_render, txt_render.get_rect(center=(cx, y_txt + alto_linea // 2)))
             y_txt += alto_linea
 
         # Separador para las estadísticas

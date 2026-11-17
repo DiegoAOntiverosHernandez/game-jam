@@ -69,9 +69,9 @@ class EscenaMenu:
             # Escalar proporcionalmente si es muy grande
             ancho_orig, alto_orig = self.logo.get_size()
             if alto_orig > 150:
-                escala = 140 / float(alto_orig)
+                escala = 200 / float(alto_orig)
                 self.logo = pygame.transform.smoothscale(
-                    self.logo, (int(ancho_orig * escala), 140)
+                    self.logo, (int(ancho_orig * escala), 200)
                 )
 
         iniciar_ambiente()
@@ -162,7 +162,7 @@ class EscenaMenu:
                 "PROTECCIÓN DEL ECOSISTEMA Y DISTRIBUCIÓN DEL AGUA",
                 self.fuente_subtitulo,
                 COLOR_CREMA,
-                centro=(cx, 205),
+                centro=(cx, 220),
                 offset_sombra=(1, 1),
                 con_borde=True,
             )
