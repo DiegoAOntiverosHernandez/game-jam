@@ -5,9 +5,11 @@ from codigo import configuracion as cfg
 from codigo.gestor_recursos import (
     VOLUMENES,
     actualizar_volumenes,
+    alternar_pantalla_completa,
     cargar_fuente,
     cargar_imagen,
     dibujar_texto_retro,
+    es_pantalla_completa,
     iniciar_ambiente,
     reproducir_sonido,
 )
@@ -32,12 +34,13 @@ class EscenaMenu:
         self.fuente_audio = pygame.font.SysFont("arial", 19)
 
         cx = cfg.ANCHO_VENTANA // 2
-        ancho_btn, alto_btn = 320, 48
+        ancho_btn, alto_btn = 320, 44
 
-        self.btn_jugar = pygame.Rect(cx - ancho_btn // 2, 260, ancho_btn, alto_btn)
-        self.btn_consejos = pygame.Rect(cx - ancho_btn // 2, 324, ancho_btn, alto_btn)
-        self.btn_audio = pygame.Rect(cx - ancho_btn // 2, 388, ancho_btn, alto_btn)
-        self.btn_salir = pygame.Rect(cx - ancho_btn // 2, 452, ancho_btn, alto_btn)
+        self.btn_jugar = pygame.Rect(cx - ancho_btn // 2, 244, ancho_btn, alto_btn)
+        self.btn_consejos = pygame.Rect(cx - ancho_btn // 2, 298, ancho_btn, alto_btn)
+        self.btn_audio = pygame.Rect(cx - ancho_btn // 2, 352, ancho_btn, alto_btn)
+        self.btn_pantalla = pygame.Rect(cx - ancho_btn // 2, 406, ancho_btn, alto_btn)
+        self.btn_salir = pygame.Rect(cx - ancho_btn // 2, 460, ancho_btn, alto_btn)
 
         # Modal de configuración de audio
         self.en_menu_audio = False
@@ -89,6 +92,8 @@ class EscenaMenu:
                 self.siguiente = "carga"
             elif self.btn_audio.collidepoint(evento.pos):
                 self.en_menu_audio = True
+            elif self.btn_pantalla.collidepoint(evento.pos):
+                alternar_pantalla_completa()
             elif self.btn_salir.collidepoint(evento.pos):
                 self.siguiente = "salir"
 
@@ -187,10 +192,14 @@ class EscenaMenu:
             )
 
         # Botones del menú
+        etiqueta_pantalla = (
+            "MODO VENTANA" if es_pantalla_completa() else "PANTALLA COMPLETA"
+        )
         botones = [
             (self.btn_jugar, "JUGAR"),
             (self.btn_consejos, "GUÍA Y CONSEJOS"),
             (self.btn_audio, "CONFIGURACIÓN DE AUDIO"),
+            (self.btn_pantalla, etiqueta_pantalla),
             (self.btn_salir, "SALIR"),
         ]
 

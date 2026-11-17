@@ -7,9 +7,11 @@ from codigo import configuracion as cfg
 from codigo.gestor_recursos import (
     VOLUMENES,
     actualizar_volumenes,
+    alternar_pantalla_completa,
     cargar_fuente,
     cargar_imagen,
     dibujar_texto_retro,
+    es_pantalla_completa,
     reproducir_sonido,
 )
 from codigo.ecs.componentes import (
@@ -927,12 +929,13 @@ class SistemaInterfaz:
         self.boton_pausa = pygame.Rect(cfg.ANCHO_MAPA + 16, 516, 160, 38)
 
         cx, cy = cfg.ANCHO_MAPA // 2, cfg.ALTO_MAPA // 2
-        self.rect_caja_pausa = pygame.Rect(cx - 195, cy - 210, 390, 420)
-        ancho_btn, alto_btn = 310, 48
+        self.rect_caja_pausa = pygame.Rect(cx - 195, cy - 220, 390, 440)
+        ancho_btn, alto_btn = 310, 46
         bx = cx - ancho_btn // 2
-        self.btn_continuar = pygame.Rect(bx, cy - 80, ancho_btn, alto_btn)
-        self.btn_config_audio = pygame.Rect(bx, cy - 10, ancho_btn, alto_btn)
-        self.btn_salir = pygame.Rect(bx, cy + 60, ancho_btn, alto_btn)
+        self.btn_continuar = pygame.Rect(bx, cy - 105, ancho_btn, alto_btn)
+        self.btn_config_audio = pygame.Rect(bx, cy - 45, ancho_btn, alto_btn)
+        self.btn_pantalla_completa = pygame.Rect(bx, cy + 15, ancho_btn, alto_btn)
+        self.btn_salir = pygame.Rect(bx, cy + 75, ancho_btn, alto_btn)
 
         self.rect_caja_audio = pygame.Rect(cx - 330, cy - 215, 660, 430)
         self.categorias_audio = [
@@ -994,6 +997,8 @@ class SistemaInterfaz:
                     self.pausado = False
                 elif self.btn_config_audio.collidepoint(evento.pos):
                     self.en_menu_audio = True
+                elif self.btn_pantalla_completa.collidepoint(evento.pos):
+                    alternar_pantalla_completa()
                 elif self.btn_salir.collidepoint(evento.pos):
                     self.pausado = False
                     escena.siguiente = "menu"
@@ -1111,10 +1116,14 @@ class SistemaInterfaz:
             color_borde=(25, 12, 6),
         )
 
+        etiqueta_pantalla = (
+            "MODO VENTANA" if es_pantalla_completa() else "PANTALLA COMPLETA"
+        )
         pos_mouse = pygame.mouse.get_pos()
         for rect_btn, etiqueta in (
             (self.btn_continuar, "CONTINUAR"),
             (self.btn_config_audio, "CONFIGURACIÓN DE AUDIO"),
+            (self.btn_pantalla_completa, etiqueta_pantalla),
             (self.btn_salir, "VOLVER AL INICIO"),
         ):
             hover = rect_btn.collidepoint(pos_mouse)

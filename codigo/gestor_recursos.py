@@ -259,3 +259,21 @@ def detener_todo_audio(cerrar_mixer=False):
                 pygame.mixer.quit()
     except pygame.error:
         pass
+
+
+def es_pantalla_completa():
+    """Devuelve True si la ventana actual está en modo pantalla completa."""
+    try:
+        return bool(pygame.display.get_init() and pygame.display.is_fullscreen())
+    except pygame.error:
+        return False
+
+
+def alternar_pantalla_completa():
+    """Alterna entre modo ventana y pantalla completa manteniendo la escala."""
+    try:
+        if pygame.display.get_init():
+            pygame.display.toggle_fullscreen()
+    except pygame.error:
+        pass
+

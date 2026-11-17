@@ -6,7 +6,7 @@ Los valores de balance son un punto de partida y se afinan jugando.
 """
 
 # --- Ventana y mapa ---------------------------------------------------------
-TITULO_VENTANA = "El Último Aguaje: Legado Cochimí"
+TITULO_VENTANA = "El Respiro de la Sierra"
 FPS = 60
 SEGUNDOS_CARGA_SIMULADA = 6            # lo que tarda en llenarse la barra de carga
 

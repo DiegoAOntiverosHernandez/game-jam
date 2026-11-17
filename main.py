@@ -9,7 +9,11 @@ from codigo.escenas.escena_carga import EscenaCarga
 from codigo.escenas.escena_final import EscenaFinal
 from codigo.escenas.escena_juego import EscenaJuego
 from codigo.escenas.escena_menu import EscenaMenu
-from codigo.gestor_recursos import cargar_imagen, detener_todo_audio
+from codigo.gestor_recursos import (
+    alternar_pantalla_completa,
+    cargar_imagen,
+    detener_todo_audio,
+)
 
 # Contrato de una escena: métodos manejar_evento(evento), actualizar(dt) y
 # dibujar(), más un atributo `siguiente`: None mientras sigue activa, o el nombre
@@ -61,6 +65,14 @@ def main():
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 ejecutando = False
+            elif evento.type == pygame.KEYDOWN and (
+                evento.key == pygame.K_F11
+                or (
+                    evento.key in (pygame.K_RETURN, pygame.K_KP_ENTER)
+                    and (evento.mod & pygame.KMOD_ALT)
+                )
+            ):
+                alternar_pantalla_completa()
             else:
                 escena.manejar_evento(evento)
         escena.actualizar(dt)
