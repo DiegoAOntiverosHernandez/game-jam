@@ -14,6 +14,8 @@ ESTADO_YENDO_A_COMER = "yendo_a_comer"
 ESTADO_COMIENDO = "comiendo"
 ESTADO_MUERTO = "muerto"
 ESTADO_CAZANDO = "cazando"
+ESTADO_REUNION_FINAL = "reunion_final"
+ESTADO_REUNION_LLEGADO = "reunion_llegado"
 
 @dataclass
 class ComponenteTransformacion:

@@ -24,6 +24,8 @@ from codigo.ecs.componentes import (
     ESTADO_YENDO_AL_RECURSO,
     ESTADO_MUERTO,
     ESTADO_CAZANDO,
+    ESTADO_REUNION_FINAL,
+    ESTADO_REUNION_LLEGADO,
     ComponenteAlmacen,
     ComponenteAnimal,
     ComponenteNecesidades,
@@ -606,6 +608,10 @@ class SistemaNecesidades:
             if rutina.estado in ESTADOS_NECESIDAD:
                 continue
 
+            # Durante la animación de reunión final no se interrumpe con hambre
+            if rutina.estado == ESTADO_REUNION_LLEGADO:
+                continue
+
             necesidades.segundos_ciclo += dt
             if necesidades.segundos_ciclo >= cfg.SEGUNDOS_CICLO_CONSUMO:
                 necesidades.segundos_ciclo = 0.0
@@ -745,6 +751,10 @@ class SistemaRenderizado:
             sufijo = "sentada" if es_mujer else "sentando"
             return f"{carpeta}/{prefijo_min}_{sufijo}.png", False
         if estado == ESTADO_HAMBRIENTO:
+            p = prefijo_min if es_mujer else prefijo_may
+            return f"{carpeta}/{p}_saludando.png", False
+        if estado == ESTADO_REUNION_LLEGADO:
+            # Aldeano celebrando al llegar al campamento al final del día 30
             p = prefijo_min if es_mujer else prefijo_may
             return f"{carpeta}/{p}_saludando.png", False
         if estado == ESTADO_INACTIVO and seleccionado:

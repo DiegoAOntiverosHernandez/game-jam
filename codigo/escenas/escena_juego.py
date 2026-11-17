@@ -6,7 +6,10 @@ import pygame
 from codigo import configuracion as cfg
 from codigo.ecs.componentes import (
     ESTADO_HAMBRIENTO,
+    ESTADO_INACTIVO,
+    ESTADO_MOVIENDOSE,
     ESTADO_MUERTO,
+    ESTADO_REUNION_LLEGADO,
     ComponenteAlmacen,
     ComponenteAnimal,
     ComponenteNecesidades,
@@ -93,6 +96,11 @@ class EscenaJuego:
         self.fin_del_juego = False
         self.mensaje_fin_juego = ""
         self.params_siguiente = None
+
+        # --- Animación de reunión final (día 30) ---
+        self.fase_reunion = False          # True cuando los aldeanos marchan al campamento
+        self.tiempo_espera_reunion = 0.0   # segundos esperados tras la llegada de todos
+        self.ESPERA_POST_REUNION = 3.0     # segundos de pausa antes de lanzar la cinemática
 
         self.id_campamento = None
         self._cargar_mapa_desde_matriz()
@@ -336,8 +344,79 @@ class EscenaJuego:
                 dia=30,
             )
 
+    def _iniciar_reunion(self):
+        """Manda a todos los aldeanos vivos al centro del campamento para el final.
+        Si no quedan aldeanos, lanza la cinemática de game over directamente."""
+        almacen = self.mundo.obtener(self.id_campamento, ComponenteAlmacen)
+
+        if self.pnj_vivos() <= 0:
+            # Sin supervivientes: game over directo, sin animación
+            self._disparar_cinematica(
+                tipo="game_over",
+                motivo="pnj_muertos",
+                mensaje="Todos los habitantes han muerto. No quedó nadie para ver el amanecer del día 30.",
+                agua=almacen.agua if almacen else 0,
+                comida=almacen.comida if almacen else 0,
+                pnj_vivos=0,
+                dia=30,
+            )
+            return
+
+        self.fase_reunion = True
+        self.tiempo_espera_reunion = 0.0
+
+        # Centro del campamento (ligeramente abajo de la cabaña para que se vean)
+        camp_pos = self.mundo.obtener(self.id_campamento, ComponenteTransformacion)
+        cx = camp_pos.x + cfg.TAMANO_CASA_CAMPANA[0] / 2
+        cy = camp_pos.y + cfg.TAMANO_CASA_CAMPANA[1] + 20
+
+        # Frenar al x1 para la marcha cinematográfica
+        self.reloj.velocidad = 1
+
+        # Enviar a cada aldeano vivo hacia el campamento con ligero desplazamiento
+        offset_idx = 0
+        for _, (rutina,) in self.mundo.entidades_con(ComponenteRutinaTrabajador):
+            if rutina.estado == ESTADO_MUERTO:
+                continue
+            # Limpiar tarea actual y ordenar marchar al campamento
+            rutina.objetivo = None
+            rutina.carga = 0
+            rutina.tipo_carga = None
+            # Pequeño desfase para que no se apilen todos en el mismo píxel
+            col = offset_idx % 4
+            fila_off = offset_idx // 4
+            offset_x = (col - 1.5) * 26
+            offset_y = fila_off * 22
+            rutina.destino = (cx + offset_x, cy + offset_y)
+            rutina.estado = ESTADO_MOVIENDOSE
+            offset_idx += 1
+
+    def _actualizar_reunion(self, dt):
+        """Espera que todos los aldeanos lleguen al campamento y luego lanza la cinemática."""
+        # Un aldeano "llegó" cuando el sistema le puso destino=None y estado=INACTIVO,
+        # o cuando ya fue promovido a REUNION_LLEGADO en un tick anterior.
+        ESTADOS_LLEGADO = (ESTADO_INACTIVO, ESTADO_REUNION_LLEGADO)
+        todos_llegaron = all(
+            rutina.destino is None and rutina.estado in ESTADOS_LLEGADO
+            for _, (rutina,) in self.mundo.entidades_con(ComponenteRutinaTrabajador)
+            if rutina.estado != ESTADO_MUERTO
+        )
+
+        if todos_llegaron:
+            for _, (rutina,) in self.mundo.entidades_con(ComponenteRutinaTrabajador):
+                if rutina.estado == ESTADO_INACTIVO:
+                    rutina.estado = ESTADO_REUNION_LLEGADO
+
+            self.tiempo_espera_reunion += dt
+            if self.tiempo_espera_reunion >= self.ESPERA_POST_REUNION:
+                self._evaluar_fin_dia_30()
+
     def manejar_evento(self, evento):
         if self.sistema_interfaz.manejar_evento(self, evento):
+            return
+
+        # Durante la animación de reunión solo se permite la pausa
+        if self.fase_reunion:
             return
 
         # Atajos de depuración para probar directamente las cinemáticas:
@@ -392,9 +471,9 @@ class EscenaJuego:
                 )
                 return
             elif evento.key == pygame.K_F10:
-                # Avanzar tiempo a los 30 días (un instante antes de cerrar el día 30)
-                self.reloj.dia = 30
-                self.reloj.segundos_dia = cfg.SEGUNDOS_POR_DIA - 0.5
+                # Avanzar al día 31 para disparar la animación de reunión final
+                self.reloj.dia = cfg.DIAS_OBJETIVO + 1
+                self.reloj.segundos_dia = 0.0
                 return
 
         self.sistema_entrada.manejar_evento(self.mundo, evento)
@@ -420,9 +499,14 @@ class EscenaJuego:
         self.mundo.actualizar(dt_juego)
 
         # 1. Verificar si se completaron los 30 días de supervivencia
-        if self.reloj.dia > cfg.DIAS_OBJETIVO:
-            self._evaluar_fin_dia_30()
-            return
+        if self.reloj.dia > cfg.DIAS_OBJETIVO and not self.fase_reunion and not self.fin_del_juego:
+            # Disparar animación de marcha al campamento (o game over directo si no hay nadie)
+            self._iniciar_reunion()
+
+        # 1b. Si la animación de reunión está activa, actualizar y bloquear el resto del juego
+        if self.fase_reunion:
+            self._actualizar_reunion(dt_juego)
+            return  # no ejecutar lógica normal de derrota ni derrota prematura
 
         # 2. Actualizar contadores de escasez en el almacén y verificar condiciones de derrota prematura
         almacen = self.mundo.obtener(self.id_campamento, ComponenteAlmacen)
@@ -484,6 +568,29 @@ class EscenaJuego:
             self.pantalla.blit(self.filtro_noche, (0, 0))
 
         self.sistema_interfaz.dibujar(self, self.pantalla)
+
+        # Overlay de animación de reunión final
+        if self.fase_reunion:
+            self._dibujar_overlay_reunion()
+
+    def _dibujar_overlay_reunion(self):
+        """Dibuja un banner en la parte superior mientras los aldeanos marchan al campamento."""
+        from codigo.gestor_recursos import cargar_fuente, dibujar_texto_retro
+        ancho_mapa = cfg.ANCHO_MAPA
+
+        # Banda semitransparente en la parte superior del mapa
+        banda = pygame.Surface((ancho_mapa, 48), pygame.SRCALPHA)
+        banda.fill((0, 0, 0, 160))
+        self.pantalla.blit(banda, (0, 0))
+
+        fuente = cargar_fuente(10, retro=True)
+        dibujar_texto_retro(
+            self.pantalla,
+            "DÍA 30 · LOS ALDEANOS REGRESAN AL CAMPAMENTO",
+            fuente,
+            (255, 220, 80),
+            centro=(ancho_mapa // 2, 24),
+        )
 
     def _oscuridad(self):
         hora = self.reloj.segundos_dia / cfg.SEGUNDOS_POR_DIA * cfg.HORAS_POR_DIA
