@@ -27,9 +27,11 @@ TAMANO_CASA_CAMPANA = (128, 128)         # 3x3 casillas
 # --- Tiempo -------------------------------------------------------------------
 SEGUNDOS_POR_DIA = 60                  # a velocidad x1 equivale a 60 s reales
 HORAS_POR_DIA = 24
-DIAS_PREPARACION = 50
-DIAS_SEQUIA = 20
-DIAS_TOTALES = DIAS_PREPARACION + DIAS_SEQUIA   # 70
+DIAS_OBJETIVO = 30                     # Meta de supervivencia y evaluación de cinemática final
+DIAS_TOTALES = 30                      # Total de días de la partida
+DIAS_PREPARACION = 30
+DIAS_SEQUIA = 0
+RESERVA_FULL = 100                     # Umbral de comida y agua para considerar recursos 'full' al día 30
 
 VELOCIDADES = (1, 2, 5)                # botones de avance rápido
 VELOCIDAD_SEQUIA = 1.25                # velocidad automática desde el día 50

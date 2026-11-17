@@ -23,6 +23,6 @@ CONSEJOS = [
     "volver.",
     f"Pierdes si no queda ningún cochimí y no tienes {cfg.COSTO_PNJ_PRIMERO} de "
     "comida para crear otro. En la sequía, pierdes si el agua o la comida llegan a 0.",
-    f"El día {cfg.DIAS_PREPARACION} pierdes el control. Llega con las reservas "
-    "llenas para sobrevivir a la sequía.",
+    f"Llega al día {cfg.DIAS_TOTALES} con las mayores reservas posibles de agua "
+    "y comida para asegurar la supervivencia de tu tribu.",
 ]

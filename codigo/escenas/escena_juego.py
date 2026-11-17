@@ -92,6 +92,7 @@ class EscenaJuego:
         self.ost_iniciado = False
         self.fin_del_juego = False
         self.mensaje_fin_juego = ""
+        self.params_siguiente = None
 
         self.id_campamento = None
         self._cargar_mapa_desde_matriz()
@@ -251,16 +252,151 @@ class EscenaJuego:
         self._crear_cochimi(x, y)
         reproducir_sonido("sonidos ambientales/sonido_de_apericion_de_nuevo_aldeano.mp3")
 
-    def _activar_fin_del_juego(self, mensaje):
+    def _disparar_cinematica(
+        self, tipo, motivo, mensaje="", agua=0, comida=0, pnj_vivos=0, dia=30
+    ):
+        """Activa la cinemática de final (Victoria o Game Over) con sus parámetros."""
         if self.fin_del_juego:
             return
         self.fin_del_juego = True
         self.mensaje_fin_juego = mensaje
-        reproducir_fin_del_juego()
+        self.siguiente = "final"
+        self.params_siguiente = {
+            "tipo": tipo,
+            "motivo": motivo,
+            "mensaje": mensaje,
+            "agua": agua,
+            "comida": comida,
+            "pnj_vivos": pnj_vivos,
+            "dia": dia,
+        }
+
+    def _evaluar_fin_dia_30(self):
+        """Evalúa las condiciones al llegar a los 30 días para victoria o game over."""
+        almacen = self.mundo.obtener(self.id_campamento, ComponenteAlmacen)
+        agua = almacen.agua if almacen else 0
+        comida = almacen.comida if almacen else 0
+        vivos = self.pnj_vivos()
+
+        # Condición 1: Game Over a los 30 días
+        if agua <= 0 and comida <= 0:
+            # - Si se acaban los recursos a los 30 días
+            self._disparar_cinematica(
+                tipo="game_over",
+                motivo="recursos_agotados_30",
+                mensaje="Se acabaron todos los recursos a los 30 días. La sequía extrema venció a la tribu.",
+                agua=agua,
+                comida=comida,
+                pnj_vivos=vivos,
+                dia=30,
+            )
+        elif agua <= 0 and comida > 0:
+            # - Aunque haya comida pero no hay agua guardada a los 30 días
+            self._disparar_cinematica(
+                tipo="game_over",
+                motivo="sin_agua_con_comida_30",
+                mensaje="Aunque había comida guardada, no quedó agua a los 30 días. En la sierra, sin agua no hay vida.",
+                agua=agua,
+                comida=comida,
+                pnj_vivos=vivos,
+                dia=30,
+            )
+        # Condición 2: Win a los 30 días
+        elif agua >= cfg.RESERVA_FULL and comida >= cfg.RESERVA_FULL:
+            # - Recursos full a los 30 días
+            self._disparar_cinematica(
+                tipo="victoria",
+                motivo="recursos_full_30",
+                mensaje="¡Recursos al máximo a los 30 días! La tribu Cochimí prosperará por generaciones enteras.",
+                agua=agua,
+                comida=comida,
+                pnj_vivos=vivos,
+                dia=30,
+            )
+        elif agua > 0 and comida <= 0:
+            # - Hay agua aunque no haya comida a los 30 días
+            self._disparar_cinematica(
+                tipo="victoria",
+                motivo="agua_sin_comida_30",
+                mensaje="¡Hay agua guardada a los 30 días aunque no haya comida! Gracias al aguaje sagrado, la tribu sobrevivió.",
+                agua=agua,
+                comida=comida,
+                pnj_vivos=vivos,
+                dia=30,
+            )
+        else:
+            # - Victoria estándar con agua y comida suficientes
+            self._disparar_cinematica(
+                tipo="victoria",
+                motivo="supervivencia_exitosa_30",
+                mensaje="¡La tribu logró sobrevivir 30 días con agua y alimento! Has protegido el legado cochimí.",
+                agua=agua,
+                comida=comida,
+                pnj_vivos=vivos,
+                dia=30,
+            )
 
     def manejar_evento(self, evento):
         if self.sistema_interfaz.manejar_evento(self, evento):
             return
+
+        # Atajos de depuración para probar directamente las cinemáticas:
+        if evento.type == pygame.KEYDOWN:
+            almacen = self.mundo.obtener(self.id_campamento, ComponenteAlmacen)
+            agua = almacen.agua if almacen else 0
+            comida = almacen.comida if almacen else 0
+            vivos = self.pnj_vivos()
+
+            if evento.key == pygame.K_F6:
+                # Probar Cinemática Game Over: recursos agotados a los 30 días
+                self._disparar_cinematica(
+                    tipo="game_over",
+                    motivo="recursos_agotados_30",
+                    agua=0,
+                    comida=0,
+                    pnj_vivos=vivos,
+                    dia=30,
+                )
+                return
+            elif evento.key == pygame.K_F7:
+                # Probar Cinemática Game Over: con comida pero sin agua a los 30 días
+                self._disparar_cinematica(
+                    tipo="game_over",
+                    motivo="sin_agua_con_comida_30",
+                    agua=0,
+                    comida=max(20, comida),
+                    pnj_vivos=vivos,
+                    dia=30,
+                )
+                return
+            elif evento.key == pygame.K_F8:
+                # Probar Cinemática Win: recursos full a los 30 días
+                self._disparar_cinematica(
+                    tipo="victoria",
+                    motivo="recursos_full_30",
+                    agua=cfg.RESERVA_FULL,
+                    comida=cfg.RESERVA_FULL,
+                    pnj_vivos=vivos,
+                    dia=30,
+                )
+                return
+            elif evento.key == pygame.K_F9:
+                # Probar Cinemática Win: con agua aunque no haya comida a los 30 días
+                self._disparar_cinematica(
+                    tipo="victoria",
+                    motivo="agua_sin_comida_30",
+                    agua=max(25, agua),
+                    comida=0,
+                    pnj_vivos=vivos,
+                    dia=30,
+                )
+                return
+            elif evento.key == pygame.K_F10:
+                # Avanzar tiempo a los 30 días (un instante antes de cerrar el día 30)
+                self.reloj.dia = 30
+                self.reloj.segundos_dia = cfg.SEGUNDOS_POR_DIA - 0.5
+                return
+
         self.sistema_entrada.manejar_evento(self.mundo, evento)
 
     def actualizar(self, dt):
@@ -283,7 +419,12 @@ class EscenaJuego:
 
         self.mundo.actualizar(dt_juego)
 
-        # Actualizar contadores de escasez en el almacén y verificar condiciones de derrota
+        # 1. Verificar si se completaron los 30 días de supervivencia
+        if self.reloj.dia > cfg.DIAS_OBJETIVO:
+            self._evaluar_fin_dia_30()
+            return
+
+        # 2. Actualizar contadores de escasez en el almacén y verificar condiciones de derrota prematura
         almacen = self.mundo.obtener(self.id_campamento, ComponenteAlmacen)
         if almacen is not None:
             if almacen.agua <= 0:
@@ -300,13 +441,28 @@ class EscenaJuego:
                 almacen.segundos_sin_recursos
                 >= cfg.DIAS_TOLERANCIA_SIN_RECURSOS * cfg.SEGUNDOS_POR_DIA
             ):
-                self._activar_fin_del_juego(
-                    "No lograste recolectar alimentos y no sobreviviste"
+                self._disparar_cinematica(
+                    tipo="game_over",
+                    motivo="recursos_agotados_prematuro",
+                    mensaje="No lograste recolectar alimentos y la tribu no sobrevivió antes del día 30.",
+                    agua=0,
+                    comida=0,
+                    pnj_vivos=self.pnj_vivos(),
+                    dia=min(30, self.reloj.dia),
                 )
                 return
 
         if self.pnj_vivos() <= 0:
-            self._activar_fin_del_juego("No sobreviviste, has fallado como líder")
+            self._disparar_cinematica(
+                tipo="game_over",
+                motivo="pnj_muertos",
+                mensaje="No sobreviviste, todos los habitantes han muerto.",
+                agua=almacen.agua if almacen else 0,
+                comida=almacen.comida if almacen else 0,
+                pnj_vivos=0,
+                dia=min(30, self.reloj.dia),
+            )
+            return
 
     def dibujar(self):
         self.pantalla.fill(cfg.COLOR_PANEL)

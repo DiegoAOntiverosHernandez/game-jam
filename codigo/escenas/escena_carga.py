@@ -3,6 +3,7 @@ import pygame
 
 from codigo import configuracion as cfg
 from codigo.consejos import CONSEJOS
+from codigo.gestor_recursos import cargar_fuente, dibujar_texto_retro
 
 COLOR_FONDO = cfg.COLOR_PANEL
 COLOR_CREMA = (235, 221, 190)
@@ -34,7 +35,7 @@ class EscenaCarga:
         self.tiempo = 0.0
         self.indice = 0
 
-        self.fuente_titulo = pygame.font.SysFont("arial", 42, bold=True, italic=True)
+        self.fuente_titulo = cargar_fuente(20, retro=True)
         self.fuente_subtitulo = pygame.font.SysFont("arial", 28, italic=True)
         self.fuente_consejo = pygame.font.SysFont("arial", 26)
         self.fuente_chica = pygame.font.SysFont("arial", 18)
@@ -59,7 +60,7 @@ class EscenaCarga:
 
     def _continuar(self):
         if self._lista():
-            self.siguiente = "juego"  # cuando exista el menú de Pablo: "menu"
+            self.siguiente = "menu"
 
     def manejar_evento(self, evento):
         if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
@@ -92,8 +93,15 @@ class EscenaCarga:
         centro = cfg.ANCHO_VENTANA // 2
         p.fill(COLOR_FONDO)
 
-        titulo = self.fuente_titulo.render("EL RESPIRO DE LA SIERRA COCHIMI", True, COLOR_CREMA)
-        p.blit(titulo, titulo.get_rect(center=(centro, 90)))
+        dibujar_texto_retro(
+            p,
+            "EL RESPIRO DE LA SIERRA COCHIMÍ",
+            self.fuente_titulo,
+            COLOR_CREMA,
+            centro=(centro, 90),
+            offset_sombra=(3, 3),
+            con_borde=True,
+        )
 
         # Caja del consejo
         pygame.draw.rect(p, COLOR_CREMA, self.caja)

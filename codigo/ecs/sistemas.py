@@ -7,7 +7,9 @@ from codigo import configuracion as cfg
 from codigo.gestor_recursos import (
     VOLUMENES,
     actualizar_volumenes,
+    cargar_fuente,
     cargar_imagen,
+    dibujar_texto_retro,
     reproducir_sonido,
 )
 from codigo.ecs.componentes import (
@@ -896,8 +898,9 @@ class SistemaInterfaz:
 
     def __init__(self):
         self.fuente = pygame.font.Font(None, 26)
-        self.fuente_titulo = pygame.font.SysFont("arial", 46, bold=True, italic=True)
-        self.fuente_boton = pygame.font.SysFont("arial", 22)
+        self.fuente_titulo = cargar_fuente(28, retro=True)
+        self.fuente_subtitulo = cargar_fuente(13, retro=True)
+        self.fuente_boton = cargar_fuente(11, retro=True)
         self.fuente_audio = pygame.font.SysFont("arial", 19)
 
         self.pausado = False
@@ -914,8 +917,8 @@ class SistemaInterfaz:
         self.boton_pausa = pygame.Rect(cfg.ANCHO_MAPA + 16, 516, 160, 38)
 
         cx, cy = cfg.ANCHO_MAPA // 2, cfg.ALTO_MAPA // 2
-        self.rect_caja_pausa = pygame.Rect(cx - 190, cy - 210, 380, 420)
-        ancho_btn, alto_btn = 280, 48
+        self.rect_caja_pausa = pygame.Rect(cx - 195, cy - 210, 390, 420)
+        ancho_btn, alto_btn = 310, 48
         bx = cx - ancho_btn // 2
         self.btn_continuar = pygame.Rect(bx, cy - 80, ancho_btn, alto_btn)
         self.btn_config_audio = pygame.Rect(bx, cy - 10, ancho_btn, alto_btn)
@@ -966,7 +969,7 @@ class SistemaInterfaz:
             return True
 
         if self.pausado:
-            self._manejar_evento_pausa(evento)
+            self._manejar_evento_pausa(escena, evento)
             return True
 
         if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
@@ -984,7 +987,7 @@ class SistemaInterfaz:
                     return True
         return False
 
-    def _manejar_evento_pausa(self, evento):
+    def _manejar_evento_pausa(self, escena, evento):
         if not self.en_menu_audio:
             if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
                 if self.btn_continuar.collidepoint(evento.pos):
@@ -992,7 +995,8 @@ class SistemaInterfaz:
                 elif self.btn_config_audio.collidepoint(evento.pos):
                     self.en_menu_audio = True
                 elif self.btn_salir.collidepoint(evento.pos):
-                    pygame.event.post(pygame.event.Event(pygame.QUIT))
+                    self.pausado = False
+                    escena.siguiente = "menu"
             return
 
         if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
@@ -1070,10 +1074,19 @@ class SistemaInterfaz:
                 (x, 282),
             )
 
-        pygame.draw.rect(pantalla, (138, 71, 14), self.boton_pausa)
-        pygame.draw.rect(pantalla, (235, 221, 190), self.boton_pausa, 2)
-        txt_pausa = self.fuente.render("Pausa", True, (255, 255, 255))
-        pantalla.blit(txt_pausa, txt_pausa.get_rect(center=self.boton_pausa.center))
+        hover_pausa = self.boton_pausa.collidepoint(pygame.mouse.get_pos())
+        pygame.draw.rect(pantalla, (175, 95, 25) if hover_pausa else (138, 71, 14), self.boton_pausa, border_radius=4)
+        pygame.draw.rect(pantalla, (235, 221, 190), self.boton_pausa, 2, border_radius=4)
+        dibujar_texto_retro(
+            pantalla,
+            "PAUSA",
+            self.fuente_boton,
+            (255, 255, 255),
+            centro=self.boton_pausa.center,
+            offset_sombra=(2, 2),
+            con_borde=True,
+            color_borde=(30, 15, 8),
+        )
 
         if escena.fin_del_juego:
             self._dibujar_menu_fin_juego(escena, pantalla)
@@ -1084,13 +1097,19 @@ class SistemaInterfaz:
                 self._dibujar_menu_pausa(pantalla)
 
     def _dibujar_menu_fin_juego(self, escena, pantalla):
-        pygame.draw.rect(pantalla, (235, 221, 190), self.rect_caja_fin)
-        pygame.draw.rect(pantalla, (130, 65, 10), self.rect_caja_fin, 3)
+        pygame.draw.rect(pantalla, (235, 221, 190), self.rect_caja_fin, border_radius=8)
+        pygame.draw.rect(pantalla, (130, 65, 10), self.rect_caja_fin, 3, border_radius=8)
 
-        titulo = self.fuente_titulo.render("Fin del juego", True, (160, 25, 25))
-        pantalla.blit(
-            titulo,
-            titulo.get_rect(center=(self.rect_caja_fin.centerx, self.rect_caja_fin.y + 52)),
+        dibujar_texto_retro(
+            pantalla,
+            "FIN DEL JUEGO",
+            self.fuente_titulo,
+            (210, 45, 35),
+            centro=(self.rect_caja_fin.centerx, self.rect_caja_fin.y + 52),
+            offset_sombra=(3, 3),
+            color_sombra=(50, 12, 10),
+            con_borde=True,
+            color_borde=(15, 8, 8),
         )
 
         # Partir el mensaje en líneas si es largo
@@ -1112,40 +1131,78 @@ class SistemaInterfaz:
             pantalla.blit(img_l, img_l.get_rect(center=(self.rect_caja_fin.centerx, y_txt)))
             y_txt += 28
 
+        pos_mouse = pygame.mouse.get_pos()
         for rect_btn, etiqueta in (
-            (self.btn_reiniciar_fin, "Volver a jugar"),
-            (self.btn_salir_fin, "Salir al menú"),
+            (self.btn_reiniciar_fin, "VOLVER A JUGAR"),
+            (self.btn_salir_fin, "SALIR AL MENÚ"),
         ):
-            pygame.draw.rect(pantalla, (138, 71, 14), rect_btn)
-            pygame.draw.rect(pantalla, (235, 221, 190), rect_btn, 1)
-            txt = self.fuente_boton.render(etiqueta, True, (255, 255, 255))
-            pantalla.blit(txt, txt.get_rect(center=rect_btn.center))
+            hover = rect_btn.collidepoint(pos_mouse)
+            color_fondo = (175, 95, 25) if hover else (138, 71, 14)
+            pygame.draw.rect(pantalla, color_fondo, rect_btn, border_radius=6)
+            pygame.draw.rect(pantalla, (235, 221, 190), rect_btn, 1, border_radius=6)
+            dibujar_texto_retro(
+                pantalla,
+                etiqueta,
+                self.fuente_boton,
+                (255, 255, 255),
+                centro=rect_btn.center,
+                offset_sombra=(2, 2),
+                con_borde=True,
+                color_borde=(30, 15, 8),
+            )
 
     def _dibujar_menu_pausa(self, pantalla):
-        pygame.draw.rect(pantalla, (235, 221, 190), self.rect_caja_pausa)
-        pygame.draw.rect(pantalla, (130, 65, 10), self.rect_caja_pausa, 3)
+        pygame.draw.rect(pantalla, (235, 221, 190), self.rect_caja_pausa, border_radius=8)
+        pygame.draw.rect(pantalla, (130, 65, 10), self.rect_caja_pausa, 3, border_radius=8)
 
-        titulo = self.fuente_titulo.render("Pausa", True, (0, 0, 0))
-        pantalla.blit(
-            titulo,
-            titulo.get_rect(center=(self.rect_caja_pausa.centerx, self.rect_caja_pausa.y + 65)),
+        # Título "PAUSA" con estilo retro arcade
+        dibujar_texto_retro(
+            pantalla,
+            "PAUSA",
+            self.fuente_titulo,
+            (70, 35, 12),
+            centro=(self.rect_caja_pausa.centerx, self.rect_caja_pausa.y + 65),
+            offset_sombra=(3, 3),
+            color_sombra=(190, 175, 145),
+            con_borde=True,
+            color_borde=(25, 12, 6),
         )
 
+        pos_mouse = pygame.mouse.get_pos()
         for rect_btn, etiqueta in (
-            (self.btn_continuar, "Continuar"),
-            (self.btn_config_audio, "Configuracion de audio"),
-            (self.btn_salir, "Salir"),
+            (self.btn_continuar, "CONTINUAR"),
+            (self.btn_config_audio, "CONFIGURACIÓN DE AUDIO"),
+            (self.btn_salir, "VOLVER AL INICIO"),
         ):
-            pygame.draw.rect(pantalla, (138, 71, 14), rect_btn)
-            txt = self.fuente_boton.render(etiqueta, True, (255, 255, 255))
-            pantalla.blit(txt, txt.get_rect(center=rect_btn.center))
+            hover = rect_btn.collidepoint(pos_mouse)
+            color_fondo = (175, 95, 25) if hover else (138, 71, 14)
+            pygame.draw.rect(pantalla, color_fondo, rect_btn, border_radius=6)
+            pygame.draw.rect(pantalla, (235, 221, 190), rect_btn, 2, border_radius=6)
+            dibujar_texto_retro(
+                pantalla,
+                etiqueta,
+                self.fuente_boton,
+                (255, 255, 255),
+                centro=rect_btn.center,
+                offset_sombra=(2, 2),
+                con_borde=True,
+                color_borde=(35, 18, 8),
+            )
 
     def _dibujar_menu_audio(self, pantalla):
-        pygame.draw.rect(pantalla, (34, 28, 26), self.rect_caja_audio)
-        pygame.draw.rect(pantalla, (120, 95, 80), self.rect_caja_audio, 2)
+        pygame.draw.rect(pantalla, (34, 28, 26), self.rect_caja_audio, border_radius=8)
+        pygame.draw.rect(pantalla, (120, 95, 80), self.rect_caja_audio, 2, border_radius=8)
 
-        encabezado = self.fuente_audio.render("Volúmenes", True, (210, 200, 195))
-        pantalla.blit(encabezado, (self.rect_caja_audio.x + 20, self.rect_caja_audio.y + 18))
+        dibujar_texto_retro(
+            pantalla,
+            "VOLÚMENES DE AUDIO",
+            self.fuente_subtitulo,
+            (235, 220, 205),
+            topleft=(self.rect_caja_audio.x + 20, self.rect_caja_audio.y + 18),
+            offset_sombra=(2, 2),
+            con_borde=True,
+            color_borde=(15, 12, 10),
+        )
 
         y0 = self.rect_caja_audio.y + 58
         for i, (clave, nombre) in enumerate(self.categorias_audio):
@@ -1153,8 +1210,8 @@ class SistemaInterfaz:
             rect_fila = pygame.Rect(
                 self.rect_caja_audio.x + 18, fila_y, self.rect_caja_audio.width - 36, 48
             )
-            pygame.draw.rect(pantalla, (56, 46, 43), rect_fila)
-            pygame.draw.rect(pantalla, (82, 70, 66), rect_fila, 1)
+            pygame.draw.rect(pantalla, (56, 46, 43), rect_fila, border_radius=4)
+            pygame.draw.rect(pantalla, (82, 70, 66), rect_fila, 1, border_radius=4)
 
             lbl = self.fuente_audio.render(nombre, True, (215, 208, 204))
             pantalla.blit(lbl, (rect_fila.x + 16, rect_fila.centery - lbl.get_height() // 2))
@@ -1187,7 +1244,17 @@ class SistemaInterfaz:
                 )
             pygame.draw.circle(pantalla, (255, 255, 255), (x_activo, y_linea), 6)
 
-        pygame.draw.rect(pantalla, (138, 71, 14), self.btn_volver_audio)
-        pygame.draw.rect(pantalla, (235, 221, 190), self.btn_volver_audio, 1)
-        txt_volver = self.fuente_boton.render("Volver", True, (255, 255, 255))
-        pantalla.blit(txt_volver, txt_volver.get_rect(center=self.btn_volver_audio.center))
+        hover_volver = self.btn_volver_audio.collidepoint(pygame.mouse.get_pos())
+        color_v = (175, 95, 25) if hover_volver else (138, 71, 14)
+        pygame.draw.rect(pantalla, color_v, self.btn_volver_audio, border_radius=6)
+        pygame.draw.rect(pantalla, (235, 221, 190), self.btn_volver_audio, 1, border_radius=6)
+        dibujar_texto_retro(
+            pantalla,
+            "VOLVER",
+            self.fuente_boton,
+            (255, 255, 255),
+            centro=self.btn_volver_audio.center,
+            offset_sombra=(2, 2),
+            con_borde=True,
+            color_borde=(30, 15, 8),
+        )

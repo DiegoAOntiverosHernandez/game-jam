@@ -6,7 +6,9 @@ import pygame
 
 from codigo import configuracion as cfg
 from codigo.escenas.escena_carga import EscenaCarga
+from codigo.escenas.escena_final import EscenaFinal
 from codigo.escenas.escena_juego import EscenaJuego
+from codigo.escenas.escena_menu import EscenaMenu
 from codigo.gestor_recursos import detener_todo_audio
 
 # Contrato de una escena: métodos manejar_evento(evento), actualizar(dt) y
@@ -15,9 +17,9 @@ from codigo.gestor_recursos import detener_todo_audio
 ESCENA_INICIAL = "carga"
 ESCENAS = {
     "carga": EscenaCarga,
+    "menu": EscenaMenu,
     "juego": EscenaJuego,
-    # "menu": EscenaMenu,       # Pablo
-    # "final": EscenaFinal,     # Pablo (reflexión)
+    "final": EscenaFinal,
 }
 
 
@@ -54,12 +56,16 @@ def main():
 
         nombre = getattr(escena, "siguiente", None)
         if nombre is not None:
-            if nombre in ESCENAS:
-                detener_todo_audio()  # cada escena arranca su propio sonido
-                escena = ESCENAS[nombre](pantalla)
-            elif nombre == "menu":
-                # Mientras no esté conectado el menú, el botón "Salir al menú" cierra el juego
+            if nombre == "salir":
                 ejecutando = False
+            elif nombre in ESCENAS:
+                detener_todo_audio()  # cada escena arranca su propio sonido
+                params = getattr(escena, "params_siguiente", None)
+                fabrica = ESCENAS[nombre]
+                if params:
+                    escena = fabrica(pantalla, **params)
+                else:
+                    escena = fabrica(pantalla)
             else:
                 print(f"[main] Escena desconocida: {nombre}")
                 escena.siguiente = None

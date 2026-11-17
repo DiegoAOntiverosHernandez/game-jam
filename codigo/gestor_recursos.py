@@ -12,6 +12,7 @@ import pygame
 
 _cache = {}
 _cache_sonidos = {}
+_cache_fuentes = {}
 _faltantes = set()  # para avisar una sola vez por archivo
 
 # Niveles de volumen del usuario (0 a 100)
@@ -75,6 +76,66 @@ def cargar_imagen(nombre, tamano=None, color_respaldo=(255, 0, 255),
 
     _cache[clave] = imagen
     return imagen
+
+
+def cargar_fuente(tamano, retro=True):
+    """Carga una fuente. Si retro=True, busca PressStart2P.ttf o recurre a monospace."""
+    clave = (tamano, retro)
+    if clave in _cache_fuentes:
+        return _cache_fuentes[clave]
+
+    fuente = None
+    if retro:
+        ruta_ttf = ruta_recurso("fuentes", "PressStart2P.ttf")
+        if os.path.exists(ruta_ttf):
+            try:
+                fuente = pygame.font.Font(ruta_ttf, tamano)
+            except Exception:
+                fuente = None
+        if fuente is None:
+            fuente = pygame.font.SysFont("consolas,lucidaconsole,couriernew", tamano, bold=True)
+    else:
+        fuente = pygame.font.SysFont("arial", tamano)
+
+    _cache_fuentes[clave] = fuente
+    return fuente
+
+
+def dibujar_texto_retro(
+    superficie,
+    texto,
+    fuente,
+    color,
+    centro=None,
+    topleft=None,
+    offset_sombra=(3, 3),
+    color_sombra=(15, 10, 8),
+    con_borde=True,
+    color_borde=(10, 8, 8),
+):
+    """Renderiza texto estilo arcade retro con contorno y sombra de bloque 8-bit."""
+    img_principal = fuente.render(texto, False, color)
+
+    rect = img_principal.get_rect()
+    if centro is not None:
+        rect.center = centro
+    elif topleft is not None:
+        rect.topleft = topleft
+
+    # 1. Sombra de bloque desplazada
+    if offset_sombra:
+        img_sombra = fuente.render(texto, False, color_sombra)
+        superficie.blit(img_sombra, (rect.x + offset_sombra[0], rect.y + offset_sombra[1]))
+
+    # 2. Borde / Contorno 8-bit alrededor
+    if con_borde:
+        img_borde = fuente.render(texto, False, color_borde)
+        for dx, dy in ((-2, 0), (2, 0), (0, -2), (0, 2), (-1, -1), (1, 1), (-1, 1), (1, -1)):
+            superficie.blit(img_borde, (rect.x + dx, rect.y + dy))
+
+    # 3. Capa frontal
+    superficie.blit(img_principal, rect)
+    return rect
 
 
 def _asegurar_mixer():
